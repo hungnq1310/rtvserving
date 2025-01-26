@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 from trism import TritonModel
 from db.interface import QdrantFaceDatabase
 
+import asyncio
 from utils.score_compute import compute_similarity
 
 load_dotenv()
@@ -96,7 +97,7 @@ class ModelEmbedding:
 
         return model, tokenizer
     
-    def __call__(self, textRequest: List[str]):
+    async def __call__(self, textRequest: List[str]):
         text_responses = self.tokenizer(
             textRequest, 
             padding=True, 
@@ -133,26 +134,28 @@ class FastAPIDeployment:
         return JSONResponse(content={"message": f"Hello, {name}!"})
 
     @app.post("/query_embed")
-    def query_embed(self, textRequest: List[str]) -> JSONResponse:
-        return self.app1.remote(textRequest)
+    async def query_embed(self, textRequest: List[str]) -> JSONResponse:
+        [outputs] = await asyncio.gather(self.app1.remote(textRequest))
+        return outputs
 
     @app.post("/ctx_embed")
-    def ctx_embed(self, textRequest: List[str]) -> JSONResponse:
-        return self.app2.remote(textRequest)
+    async def ctx_embed(self, textRequest: List[str]) -> JSONResponse:
+        [outputs] = await asyncio.gather(self.app2.remote(textRequest))
+        return outputs
     
     @app.post("/search")
-    def search(self, textRequest: List[str]) -> JSONResponse:
+    async def search(self, textRequest: List[str]) -> JSONResponse:
         # -------------------INFERENCE--------------------
-        query_embed: List[List[float]] = self.query_embed(textRequest)
+        query_embed_response: JSONResponse = await self.query_embed(textRequest)
+        query_embed = query_embed_response.body
         contexts = self.db.search(
             collection_name=collection_name, 
             vector=query_embed, 
             top_k=top_k, 
             threshold=threshold
         )
-        context_embeds = self.ctx_embed(contexts)
-        context_passages = self.db.get_passages(context_embeds)
-
+        context_embeds: JSONResponse = await self.ctx_embed(contexts)
+        context_passages = self.db.get_passage(context_embeds.body)
         if use_rerank:
             scores = compute_similarity(query_embed, context_embeds)
             passages_arranged = context_passages[scores.argsort()]
