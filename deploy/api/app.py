@@ -94,7 +94,7 @@ class ModelEmbedding:
         for out in model.outputs:
             print(f"name: {out.name}, shape: {out.shape}, datatype: {out.dtype}\n") 
 
-        return tokenizer, model
+        return model, tokenizer
     
     def __call__(self, textRequest: List[str]):
         text_responses = self.tokenizer(
