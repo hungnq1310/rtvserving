@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from transformers import AutoTokenizer
 from ray import serve
-import requests
+import ray
 from dotenv import load_dotenv
 
 from trism import TritonModel
@@ -96,7 +96,7 @@ class ModelEmbedding:
 
         return tokenizer, model
     
-    def embed(self, textRequest: List[str]):
+    def __call__(self, textRequest: List[str]):
         text_responses = self.tokenizer(
             textRequest, 
             padding=True, 
@@ -134,11 +134,11 @@ class FastAPIDeployment:
 
     @app.post("/query_embed")
     def query_embed(self, textRequest: List[str]) -> JSONResponse:
-        return self.app1.embed(textRequest)
+        return self.app1.remote(textRequest)
 
     @app.post("/ctx_embed")
     def ctx_embed(self, textRequest: List[str]) -> JSONResponse:
-        return self.app2.embed(textRequest)
+        return self.app2.remote(textRequest)
     
     @app.post("/search")
     def search(self, textRequest: List[str]) -> JSONResponse:
@@ -162,7 +162,4 @@ class FastAPIDeployment:
 
 
 # 2: Deploy the deployment.
-serve.run(FastAPIDeployment.bind(app1, app2), route_prefix="/")
-
-# 3: Query the deployment and print the result.
-print(requests.get("http://localhost:8000/hello", params={"name": "Theodore"}).json())
+mainapp = FastAPIDeployment.bind(app1, app2)
