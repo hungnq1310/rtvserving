@@ -74,3 +74,14 @@ class QdrantFaceDatabase:
         )
         """
         ...
+
+    def get_passage(self, collection_name, vector):
+        """
+        return self._client.search(
+            collection_name=collection_name,
+            query_vector=vector,
+            limit=1,
+            score_threshold=0.5,
+        )
+        """
+        ...
