@@ -51,9 +51,14 @@ NOTES: remember to `cd ./deploy`
     ENCODER=<encoder_url>
      ```
 
-3. **Start Services**
+3. **Start Hosting Model Services**
      ```bash
      docker-compose up -d
+     ```
+
+4. **Run RayServe**
+     ```bash
+     serve run api.app:mainapp
      ```
 
 ## API Endpoints
