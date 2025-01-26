@@ -154,8 +154,15 @@ class FastAPIDeployment:
             top_k=top_k, 
             threshold=threshold
         )
+        if contexts is None:
+            return JSONResponse(content={"Error": "No results found!"})
+        
         context_embeds: JSONResponse = await self.ctx_embed(contexts)
         context_passages = self.db.get_passage(context_embeds.body)
+        
+        if context_passages is None:
+            return JSONResponse(content={"Error": "No results found!"})
+        
         if use_rerank:
             scores = compute_similarity(query_embed, context_embeds)
             passages_arranged = context_passages[scores.argsort()]
