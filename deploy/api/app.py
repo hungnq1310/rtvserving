@@ -12,6 +12,7 @@ import requests
 from dotenv import load_dotenv
 
 from trism import TritonModel
+from db.interface import QdrantFaceDatabase
 
 from utils.score_compute import compute_similarity
 
@@ -53,47 +54,6 @@ print(f"QDRANT_DB: {QDRANT_DB}")
 print(f"ENCODER_URL: {ENCODER_URL}")
 
 
-# ----------------------------------------------------------
-# Create triton model.
-
-#1
-query_tokenizer = AutoTokenizer.from_pretrained(
-    os.path.join("models", query_retriever_name, str(model_version))
-)
-query_model = TritonModel(
-  model=query_retriever_name,                 # Model name.
-  version=model_version,            # Model version.
-  url=url,                          # Triton Server URL.
-  grpc=grpc                         # Use gRPC or Http.
-)
-# View metadata.
-for inp in query_model.inputs:
-  print(f"name: {inp.name}, shape: {inp.shape}, datatype: {inp.dtype}\n")
-for out in query_model.outputs:
-  print(f"name: {out.name}, shape: {out.shape}, datatype: {out.dtype}\n")
-
-#2
-ctx_tokenizer = AutoTokenizer.from_pretrained(
-    os.path.join(os.curdir, "models", ctx_retriever_name, str(model_version))
-)
-ctx_model = TritonModel(
-    model=ctx_retriever_name,                 # Model name.
-    version=model_version,            # Model version.
-    url=url,                          # Triton Server URL.
-    grpc=grpc                         # Use gRPC or Http.
-    )
-# View metadata.
-for inp in ctx_model.inputs:
-  print(f"name: {inp.name}, shape: {inp.shape}, datatype: {inp.dtype}\n")
-for out in ctx_model.outputs:
-    print(f"name: {out.name}, shape: {out.shape}, datatype: {out.dtype}\n") 
-
-#3
-# Connect to Qdrant
-from deploy.db.interface import QdrantFaceDatabase
-db = QdrantFaceDatabase(url=QDRANT_DB)
-
-
 ############
 # FastAPI
 ############
@@ -112,73 +72,97 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get("/hello")
-def say_hello(name: str) -> str:
-    return f"Hello {name}!"
+## Deploy model
+@serve.deployment
+class ModelEmbedding:
+    def __init__(self, model_name):
+        self.model, self.tokenizer = self._init_model_and_tokenizer(model_name)
+        
+    def _init_model_and_tokenizer(self, model_name):
+        tokenizer = AutoTokenizer.from_pretrained(
+            os.path.join("models", model_name, str(model_version))
+        )
+        model = TritonModel(
+            model=model_name,                 # Model name.
+            version=model_version,            # Model version.
+            url=url,                          # Triton Server URL.
+            grpc=grpc                         # Use gRPC or Http.
+        )
+        # View metadata.
+        for inp in model.inputs:
+            print(f"name: {inp.name}, shape: {inp.shape}, datatype: {inp.dtype}\n")
+        for out in model.outputs:
+            print(f"name: {out.name}, shape: {out.shape}, datatype: {out.dtype}\n") 
 
-@app.post("/query_embed")
-async def query_embed(textRequest: List[str]) -> JSONResponse:
-
-    # Word-segment the input texts
-    text_responses = query_tokenizer(textRequest, padding=True, truncation=True, return_tensors="np")
-    print(text_responses)
-
-    # -------------------INFERENCE--------------------
-    try:
-        start_time = time.time()
-        outputs = query_model.run(data = [
-            text_responses['input_ids'], 
-            text_responses['attention_mask'], 
-            text_responses['token_type_ids']
-        ])
-        end_time = time.time()
-        print("Process time: ", end_time - start_time)
-        print(outputs['embeddings'].shape)
-        return JSONResponse(content=outputs["embeddings"][:, 0].tolist())
-    except Exception as e:
-        return JSONResponse(content={"Error": "Inference failed with error: " + str(e)})
-
-    # ----------------------------------------------------------------
-
-@app.post("/ctx_embed")
-async def ctx_embed(textRequest: List[str]) -> JSONResponse:
-
-    # Word-segment the input texts
-    text_responses = ctx_tokenizer(textRequest, padding=True, truncation=True, return_tensors="np")
-    print(text_responses)
-
-    # -------------------INFERENCE--------------------
-    try:
-        start_time = time.time()
-        outputs = ctx_model.run(data = [
-            text_responses['input_ids'], 
-            text_responses['attention_mask'], 
-            text_responses['token_type_ids']
-        ])
-        end_time = time.time()
-        print("Process time: ", end_time - start_time)
-        return JSONResponse(content=outputs["embeddings"][:, 0].tolist())
-    except Exception as e:
-        return JSONResponse(content={"Error": "Inference failed with error: " + str(e)})
+        return tokenizer, model
     
+    def embed(self, textRequest: List[str]):
+        text_responses = self.tokenizer(
+            textRequest, 
+            padding=True, 
+            truncation=True, 
+            return_tensors="np"
+        )
+        try:
+            start_time = time.time()
+            outputs = self.model.run(data = [
+                text_responses['input_ids'], 
+                text_responses['attention_mask'], 
+                text_responses['token_type_ids']
+            ])
+            end_time = time.time()
+            print("Process time: ", end_time - start_time)
+            return JSONResponse(content=outputs["embeddings"][:, 0].tolist())
+        except Exception as e:
+            return JSONResponse(content={"Error": "Inference failed with error: " + str(e)})
 
-@app.post("/search")
-async def search(textRequest: List[str]) -> JSONResponse:
-    # -------------------INFERENCE--------------------
-    query_embed: List[List[float]] = await query_embed(textRequest)
-    contexts = db.search(
-        collection_name=collection_name, 
-        vector=query_embed, 
-        top_k=top_k, 
-        threshold=threshold
-    )
-    context_embeds = await ctx_embed(contexts)
-    context_passages = db.get_passages(context_embeds)
+app1 = ModelEmbedding.bind(query_retriever_name)
+app2 = ModelEmbedding.bind(ctx_retriever_name)
 
-    if use_rerank:
-        scores = compute_similarity(query_embed, context_embeds)
-        passages_arranged = context_passages[scores.argsort()]
-        return JSONResponse(content=passages_arranged)
+@serve.deployment
+@serve.ingress(app)
+class FastAPIDeployment:
+    # FastAPI will automatically parse the HTTP request for us.
+    def __init__(self, app1: ModelEmbedding, app2: ModelEmbedding):
+        self.app1 = app1
+        self.app2 = app2
+        self.db = QdrantFaceDatabase(url=QDRANT_DB)
 
-    return JSONResponse(content=context_passages)
+    @app.get("/hello")
+    def hello(self, name: str) -> JSONResponse:
+        return JSONResponse(content={"message": f"Hello, {name}!"})
 
+    @app.post("/query_embed")
+    def query_embed(self, textRequest: List[str]) -> JSONResponse:
+        return self.app1.embed(textRequest)
+
+    @app.post("/ctx_embed")
+    def ctx_embed(self, textRequest: List[str]) -> JSONResponse:
+        return self.app2.embed(textRequest)
+    
+    @app.post("/search")
+    def search(self, textRequest: List[str]) -> JSONResponse:
+        # -------------------INFERENCE--------------------
+        query_embed: List[List[float]] = self.query_embed(textRequest)
+        contexts = self.db.search(
+            collection_name=collection_name, 
+            vector=query_embed, 
+            top_k=top_k, 
+            threshold=threshold
+        )
+        context_embeds = self.ctx_embed(contexts)
+        context_passages = self.db.get_passages(context_embeds)
+
+        if use_rerank:
+            scores = compute_similarity(query_embed, context_embeds)
+            passages_arranged = context_passages[scores.argsort()]
+            return JSONResponse(content=passages_arranged)
+
+        return JSONResponse(content=context_passages)
+
+
+# 2: Deploy the deployment.
+serve.run(FastAPIDeployment.bind(app1, app2), route_prefix="/")
+
+# 3: Query the deployment and print the result.
+print(requests.get("http://localhost:8000/hello", params={"name": "Theodore"}).json())
