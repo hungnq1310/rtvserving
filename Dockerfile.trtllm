@@ -1,0 +1,7 @@
+FROM nvcr.io/nvidia/tritonserver:24.04-py3 as builder
+
+RUN apt-get update && apt-get -y install openmpi-bin libopenmpi-dev
+
+RUN python3 -m pip install --upgrade pip
+RUN pip install transformers tensorrt-llm==0.12.0 --extra-index-url https://pypi.nvidia.com
+RUN pip install jupyter --extra-index-url https://pypi.nvidia.com nvidia-ammo~=0.7.3
