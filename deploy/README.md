@@ -29,7 +29,7 @@ NOTES: remember to `cd ./deploy`
 
 1. **Prepare Model Repository**
      - Place model files in `./models/` directory
-     - Configure model settings in `config.pbtxt` files
+     - Configure model settings in `config.pbtxt` files - [Guide](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_configuration.html)
      - Set proper execution accelerators and batch sizes
 
 2. **Configure Environment**
@@ -67,8 +67,3 @@ NOTES: remember to `cd ./deploy`
 - TensorRT acceleration enabled for both models
 - Configurable batch sizes and sequence lengths
 - Optional model quantization supported
-
-## Monitoring
-
-- Health check endpoint available at `/v2/health/ready`
-- Server metrics accessible via Triton metrics API
