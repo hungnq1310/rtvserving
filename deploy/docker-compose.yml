@@ -1,14 +1,23 @@
 services:
   triton:
-    image: nvcr.io/nvidia/tritonserver:24.01-py3
+    image: hieupth/tritonserver:24.08
+    container_name: rtvserving
+    environment:
+      HF_CONFIG_FILE: /hf.json
+      HF_MODEL_REPO: /models
     volumes:
-      - ${PWD}/models:/models
+      - ./configs/hf.json:/hf.json
+      - ./models:/models
+      - ./hf.py:/hf.py
+
+    tty: true
     ports:
-      - "6000:6000"
-      - "6001:6001"
+      - "8000:8000"
+      - "8001:8001"
+      - "8002:8002"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6000/v2/health/ready"]
-      interval: 60s
+      test: ["CMD", "curl", "-f", "http://localhost:8000/v2/health/ready"]
+      interval: 30s
       timeout: 5s
       retries: 2
     deploy:
@@ -18,4 +27,5 @@ services:
           - driver: nvidia
             device_ids: ['0']
             capabilities: [gpu]
-    command: tritonserver --model-repository=/models --http-port 6000 --grpc-port 6001
+    command: >
+      bash -c "python3 -u /hf.py && tritonserver --model-repository=/models --model-config-name=tensorrt"
