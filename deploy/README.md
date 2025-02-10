@@ -32,7 +32,7 @@ NOTES: remember to `cd ./deploy`
      - Configure model settings in `config.pbtxt` files - [Guide](https://docs.nvidia.com/deeplearning/triton-inference-server/user-guide/docs/user_guide/model_configuration.html)
      - Set proper execution accelerators and batch sizes
 
-2. **Configure Environment**
+2. **Configure Environment For API**
     ```bash
     # Required environment variables
      # Query Model Settings
@@ -93,10 +93,6 @@ NOTES: remember to `cd ./deploy`
      docker-compose up -d
      ```
 
-5. **Run RayServe**
-     ```bash
-     serve run api.app:mainapp
-     ```
 
 ## API Endpoints
 
