@@ -12,11 +12,11 @@ services:
 
     tty: true
     ports:
-      - "8000:8000"
-      - "8001:8001"
+      - "6000:8000"
+      - "6001:8001"
       - "8002:8002"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/v2/health/ready"]
+      test: ["CMD", "curl", "-f", "http://localhost:6000/v2/health/ready"]
       interval: 30s
       timeout: 5s
       retries: 2
@@ -28,4 +28,7 @@ services:
             device_ids: ['0']
             capabilities: [gpu]
     command: >
-      bash -c "python3 -u /hf.py && tritonserver --model-repository=/models --model-config-name=tensorrt"
+      bash -c """python3 -u /hf.py && tritonserver \
+        --model-repository=/models \
+        --model-config-name=tensorrt
+      """
