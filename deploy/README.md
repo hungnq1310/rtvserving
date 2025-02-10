@@ -35,20 +35,30 @@ NOTES: remember to `cd ./deploy`
 2. **Configure Environment**
     ```bash
     # Required environment variables
-    QUERY_MODEL_NAME=`retriever_qry`
-    CTX_MODEL_NAME=`retriever_ctx`
-    MODEL_VERSION=1
-    TRITON_URL=localhost:6000
-    QDRANT_DB=<qdrant_url>
-    BATCH_SIZE=1
-    PROTOCOL=HTTP
-    VERBOSE=False
-    ASYNC_SET=False
-    USE_RERANK=False
-    QDRANT_COLLECTION_NAME=chitchat_embed
-    TOP_K=5
-    THRESHOLD=0.5
-    ENCODER=<encoder_url>
+     # Query Model Settings
+     QUERY_MODEL_NAME=mbert.query
+     QUERY_MODEL_VERSION=2
+     BATCH_SIZE=1
+
+     # Context Model Settings
+     CTX_MODEL_NAME=mbert.context
+     CTX_MODEL_VERSION=2
+     BATCH_SIZE=10
+
+     # Server Configuration
+     TRITON_URL=localhost:8000
+     PROTOCOL=HTTP  # or GRPC
+     VERBOSE=False
+     ASYNC_SET=False
+
+     # Qdrant Settings
+     QDRANT_DB=<qdrant_url>
+     QDRANT_COLLECTION_NAME=retrieval
+     TOP_K=5
+     THRESHOLD=0.5
+
+     # Additional Settings
+     USE_RERANK=False
      ```
 
 3. **Config Hosting Model with Triton Server**

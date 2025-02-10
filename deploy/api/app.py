@@ -38,11 +38,10 @@ grpc = protocol.lower() == "grpc"
 #
 use_rerank = os.getenv("USE_RERANK", "False").lower() in ("true", "1", "t")
 # 
-collection_name = os.getenv("QDRANT_COLLECTION_NAME", "chitchat_embed")
+collection_name = os.getenv("QDRANT_COLLECTION_NAME", "retrieval")
 top_k = int(os.getenv("TOP_K", 5))
 threshold = float(os.getenv("THRESHOLD", 0.5))
 QDRANT_DB     = os.getenv("QDRANT_DB", "")
-ENCODER_URL   = os.getenv("ENCODER", "")
 
 print(f"Query model: {query_retriever_name}")
 print(f"Context model: {ctx_retriever_name}")
@@ -52,7 +51,6 @@ print(f"Verbose: {verbose}")
 print(f"Async set: {async_set}")
 print(f"Use rerank: {use_rerank}")
 print(f"QDRANT_DB: {QDRANT_DB}")
-print(f"ENCODER_URL: {ENCODER_URL}")
 
 
 ############
