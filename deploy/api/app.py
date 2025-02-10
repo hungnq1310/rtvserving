@@ -21,11 +21,13 @@ load_dotenv()
 # Parse environment variables
 #
 query_retriever_name    = os.getenv("QUERY_MODEL_NAME")
+query_version = int(os.getenv("QUERY_MODEL_VERSION", ""))
+query_batch_size    = int(os.getenv("BATCH_SIZE", 1))
+#
 ctx_retriever_name    = os.getenv("CTX_MODEL_NAME") 
+ctx_version = int(os.getenv("CTX_MODEL_VERSION", ""))
+ctx_batch_size    = int(os.getenv("BATCH_SIZE", 10))
 
-
-model_version = int(os.getenv("MODEL_VERSION", ""))
-batch_size    = int(os.getenv("BATCH_SIZE", 1))
 #
 url           = os.getenv("TRITON_URL", "localhost:6000")
 protocol      = os.getenv("PROTOCOL", "HTTP")
@@ -44,8 +46,6 @@ ENCODER_URL   = os.getenv("ENCODER", "")
 
 print(f"Query model: {query_retriever_name}")
 print(f"Context model: {ctx_retriever_name}")
-print(f"Model version: {model_version}")
-print(f"Batch size: {batch_size}")
 print(f"URL: {url}")
 print(f"Protocol: {protocol}")
 print(f"Verbose: {verbose}")
@@ -76,10 +76,10 @@ app.add_middleware(
 ## Deploy model
 @serve.deployment
 class ModelEmbedding:
-    def __init__(self, model_name):
-        self.model, self.tokenizer = self._init_model_and_tokenizer(model_name)
+    def __init__(self, model_name, model_version):
+        self.model, self.tokenizer = self._init_model_and_tokenizer(model_name, model_version)
         
-    def _init_model_and_tokenizer(self, model_name):
+    def _init_model_and_tokenizer(self, model_name, model_version):
         tokenizer = AutoTokenizer.from_pretrained(
             os.path.join("models", model_name, str(model_version))
         )
@@ -117,8 +117,8 @@ class ModelEmbedding:
         except Exception as e:
             return JSONResponse(content={"Error": "Inference failed with error: " + str(e)})
 
-app1 = ModelEmbedding.bind(query_retriever_name)
-app2 = ModelEmbedding.bind(ctx_retriever_name)
+app1 = ModelEmbedding.bind(query_retriever_name, query_version)
+app2 = ModelEmbedding.bind(ctx_retriever_name, ctx_version)
 
 @serve.deployment
 @serve.ingress(app)
