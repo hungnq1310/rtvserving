@@ -32,3 +32,35 @@ services:
         --model-repository=/models \
         --model-config-name=tensorrt
       """
+  
+  client:
+    image: heronq02/pyclient:latest
+    container_name: pyclient
+    environment:
+      QUERY_MODEL_NAME: mbert.query
+      QUERY_MODEL_VERSION: 2
+      BATCH_SIZE: 0
+      CTX_MODEL_NAME: mbert.context
+      CTX_MODEL_VERSION: 2
+      BATCH_SIZE: 0
+      TRITON_URL: localhost:6000
+      PROTOCOL: HTTP  # or GRPC
+      VERBOSE: "true"
+      ASYNC_SET: "false"
+      QDRANT_DB: <qdrant_url>
+      QDRANT_COLLECTION_NAME: retrieval
+      TOP_K: 5
+      THRESHOLD: 0.5
+      USE_RERANK: "false"
+    
+    network_mode: host
+    tty: true
+    volumes:
+      - ./models:/models
+      - ./api:/api
+
+    depends_on:
+      triton:
+        condition: service_healthy
+    command: >
+      bash -c "serve run api.app:mainapp -r"
