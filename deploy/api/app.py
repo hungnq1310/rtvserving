@@ -15,7 +15,17 @@ from trism import TritonModel
 from db.interface import QdrantFaceDatabase
 
 import asyncio
-from utils.score_compute import compute_similarity
+# from utils.score_compute import compute_similarity
+
+import numpy as np
+
+def compute_similarity(q_reps, p_reps):
+    if not isinstance(q_reps, np.ndarray):
+        q_reps = np.array(q_reps)
+    if not isinstance(p_reps, np.ndarray):
+        p_reps = np.array(p_reps)
+    return np.matmul(q_reps, p_reps.T)
+
 
 load_dotenv()
 # Parse environment variables
@@ -79,7 +89,7 @@ class ModelEmbedding:
         
     def _init_model_and_tokenizer(self, model_name, model_version):
         tokenizer = AutoTokenizer.from_pretrained(
-            os.path.join("models", model_name, str(model_version))
+            os.path.join("/models", model_name, str(model_version))
         )
         model = TritonModel(
             model=model_name,                 # Model name.
@@ -98,7 +108,7 @@ class ModelEmbedding:
     async def __call__(self, textRequest: List[str]):
         text_responses = self.tokenizer(
             textRequest, 
-            padding=True, 
+            padding='max_length', 
             truncation=True, 
             return_tensors="np"
         )
@@ -111,7 +121,13 @@ class ModelEmbedding:
             ])
             end_time = time.time()
             print("Process time: ", end_time - start_time)
-            return JSONResponse(content=outputs["embeddings"][:, 0].tolist())
+
+            ## onnx parse
+            # content = outputs["embeddings"][:, 0].tolist()
+            ## trt parse
+            content = outputs['last_hidden_state']
+            content = content.reshape(len(textRequest), -1, 768)[:, 0].tolist()
+            return JSONResponse(content=content)
         except Exception as e:
             return JSONResponse(content={"Error": "Inference failed with error: " + str(e)})
 
