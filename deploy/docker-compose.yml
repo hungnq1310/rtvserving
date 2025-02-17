@@ -39,10 +39,10 @@ services:
     environment:
       QUERY_MODEL_NAME: mbert.query
       QUERY_MODEL_VERSION: 2
-      BATCH_SIZE: 0
+      QUERY_BATCH_SIZE: 0
       CTX_MODEL_NAME: mbert.context
       CTX_MODEL_VERSION: 2
-      BATCH_SIZE: 0
+      CTX_BATCH_SIZE: 0
       TRITON_URL: localhost:6000
       PROTOCOL: HTTP  # or GRPC
       VERBOSE: "true"
