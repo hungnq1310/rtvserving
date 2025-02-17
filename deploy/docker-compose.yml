@@ -56,6 +56,7 @@ services:
     network_mode: host
     tty: true
     volumes:
+      - ./configs/deploy.yaml:/deploy.yaml
       - ./models:/models
       - ./api:/api
 
@@ -63,4 +64,4 @@ services:
       triton:
         condition: service_healthy
     command: >
-      bash -c "serve run api.app:mainapp -r"
+      bash -c "serve run /deploy.yaml"
