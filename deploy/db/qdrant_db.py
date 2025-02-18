@@ -1,10 +1,16 @@
 import os
+import logging
+
 from typing import Optional, List, Any
 from qdrant_client.http import models
 from qdrant_client import QdrantClient
 
+from deploy.db.interface import InterfaceDatabase
 
-class QdrantFaceDatabase:
+class QdrantFaceDatabase(InterfaceDatabase):
+    """ 
+    Vector database using Qdrant for storing and searching chunks and documents.
+    """
     def __init__(
         self,
         host=os.getenv("QDRANT_HOST", "localhost"),
@@ -14,7 +20,7 @@ class QdrantFaceDatabase:
     ) -> None:
         self._client = self.connect_client(host, port, url, api_key)
 
-    def connect_client(self, host, port, url, api_key):
+    def connect_client(self, url, api_key):
         if url is not None and api_key is not None:
             # cloud instance
             return QdrantClient(url=url, api_key=api_key)
@@ -22,7 +28,8 @@ class QdrantFaceDatabase:
             # local instance with differ url
             return QdrantClient(url=url)
         else:
-            return QdrantClient(host=host, port=port)
+            logging.error("None client connection")
+            return None
         
     def create_colection(self, collection_name="db", dimension=768, distance='cosine') -> None:
         if self._client.collection_exists(collection_name):
@@ -44,7 +51,7 @@ class QdrantFaceDatabase:
             ),
         )
 
-    def insert(self, collection_name: str, vectors: list, questions: list, answers: list) -> None:
+    def insert(self, points: list) -> None:
         """
         self._client.upsert(
             collection_name=collection_name,
@@ -61,7 +68,7 @@ class QdrantFaceDatabase:
             ],
         )
         """
-        ...
+        
 
     def search(self, collection_name, vector, top_k=5, threshold=0.5):
         # Top-k = 5 means 5 results for 5 personal
