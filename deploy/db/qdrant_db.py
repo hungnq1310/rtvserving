@@ -7,6 +7,14 @@ from qdrant_client import QdrantClient
 
 from deploy.db.interface import InterfaceDatabase
 
+DISTANCE_MAPPING = {
+    'euclidean': models.Distance.EUCLID,
+    'dot': models.Distance.DOT, 
+    'manhattan': models.Distance.MANHATTAN,
+    'cosine': models.Distance.COSINE
+}
+
+
 class QdrantFaceDatabase(InterfaceDatabase):
     """ 
     Vector database using Qdrant for storing and searching chunks and documents.
@@ -35,15 +43,7 @@ class QdrantFaceDatabase(InterfaceDatabase):
         if self._client.collection_exists(collection_name):
             self._client.delete_collection(collection_name)
         # resolve distance
-        if distance == 'euclidean':
-            distance = models.Distance.EUCLID
-        elif distance == 'dot':
-            distance = models.Distance.DOT
-        elif distance == 'manhattan':
-            distance = models.Distance.MANHATTAN
-        else: 
-            distance = models.Distance.COSINE
-        # 
+        distance = DISTANCE_MAPPING.get(distance, models.Distance.COSINE)
         self._client.create_collection(
             collection_name=collection_name,
             vectors_config=models.VectorParams(
