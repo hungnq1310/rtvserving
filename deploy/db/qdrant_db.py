@@ -51,44 +51,37 @@ class QdrantFaceDatabase(InterfaceDatabase):
             ),
         )
 
-    def insert(self, points: list) -> None:
-        """
+    def insert(self, points: List[dict], collection_name: str) -> None:
+        """ Insert points into collection """
         self._client.upsert(
             collection_name=collection_name,
             points=[
                 models.PointStruct(
-                    id=i,
-                    vector=vectors[i],
-                    payload={
-                        "question": questions[i],
-                        "answer": answers[i],
-                    },
+                    id=point['id'],
+                    vector=point['vector'],
+                    payload=point['payload'],
                 )
-                for i in range(len(vectors))
+                for point in points
             ],
         )
-        """
-        
 
-    def search(self, collection_name, vector, top_k=5, threshold=0.5):
-        # Top-k = 5 means 5 results for 5 personal
-        """
-        return self._client.search(
+    def search(self, vector: List[float], collection_name: str, top_k:int = 5):
+        # Top-k passages
+        return self._client.query_points(
             collection_name=collection_name,
             query_vector=vector,
             limit=top_k,
-            score_threshold=threshold,
         )
-        """
-        ...
 
-    def get_passage(self, collection_name, vector):
-        """
-        return self._client.search(
+    def get_document(self, doc_id: str, collection_name: str):
+        """ Get document information using doc_id """
+        return self._client.scroll(
             collection_name=collection_name,
-            query_vector=vector,
-            limit=1,
-            score_threshold=0.5,
+            scroll_filter=models.Filter(
+                must=[
+                    models.FieldCondition(
+                        key="doc_id", match=models.MatchValue(value=doc_id)
+                    ),
+                ],
+            ),
         )
-        """
-        ...
