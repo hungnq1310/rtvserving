@@ -6,9 +6,9 @@ class InterfaceService(ABC):
     '''Interface for Face Recognition Service'''
 
     @abstractmethod 
-    def embed(self, texts: List[Any], **kwargs) -> List[Any]:
+    def post_docs(self, texts: List[Any], **kwargs) -> None:
         ...
 
     @abstractmethod
-    def run(self, texts: List[Any], **kwargs) -> List[Any]:
+    def retrieve(self, texts: List[Any], **kwargs) -> List[Any]:
         ...
