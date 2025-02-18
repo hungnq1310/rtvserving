@@ -4,81 +4,35 @@ from db.interface import QdrantFaceDatabase
 
 from typing import List, Dict, Any
 from fastapi.responses import JSONResponse
-from schema.module import BaseModule
 
-class PostServiceV1(InterfaceService):
+from module.module import BaseModule
+
+class RetrievalServicesV1(InterfaceService):
+    """Manager for Retrieval Services"""
     def __init__(
-        self, 
-        module: BaseModule,
-        docs_db: QdrantFaceDatabase,
-        chunk_db: QdrantFaceDatabase
+        self,
+        query_module: BaseModule,
+        context_module: BaseModule, 
+        database_manager,
     ):
-        self.ctx_module = module
-        self.docs_db = docs_db
-        self.chunk_db = chunk_db
+        super().__init__()
+        self.query_module = query_module
+        self.context_module = context_module
+        self.database_manager = database_manager
 
+    def check_user(self, token: str):
+        return self.database_manager.check_user(token)
     
-    def embed(self, texts: List[str], **kwargs) -> List[List[float]]:
-        text_responses = self.ctx_module.tokenizer(
-            texts, 
-            padding='max_length', 
-            truncation=True, 
-            return_tensors="np"
-        )
-        try:
-            outputs: Dict[Any] = self.ctx_module.model.run(data = [
-                text_responses['input_ids'], 
-                text_responses['attention_mask'], 
-                text_responses['token_type_ids']
-            ])
-            outputs = outputs.values()[0] # BxLx768
-            content = content.reshape(len(texts), -1, 768)[:, 0].tolist() # Bx768
-            return content
-        except Exception as e:
-            return []
+    def post_docs(self, docs: List[Any]):
+        chunks = ...
+        texts = [doc['text'] for doc in docs]
+        payload = [doc['payload'] for doc in docs]
+        embeds = self.context_module.embed(chunks)
+        self.database_manager.upload_docs(texts, embeds, payload)
 
-    def run(self, texts: List[str], **kwargs) -> List[List[float]]:
-        chunking = ...
-
-        # texts is docs
-        chunks = texts
-        chunk_embeds = self.embed(chunks)
-        self.docs_db.insert(chunk_embeds)
-        return "Success"
-
-
-class RetrieveServiceV1(InterfaceService):
-    def __init__(
-        self, 
-        module: BaseModule,
-        docs_db: QdrantFaceDatabase,
-        chunk_db: QdrantFaceDatabase
-    ):
-        self.qry_module = module
-        self.docs_db = docs_db
-        self.chunk_db = chunk_db
-
-    
-    def embed(self, texts: List[str], **kwargs) -> List[List[float]]:
-        text_responses = self.qry_module.tokenizer(
-            texts, 
-            padding='max_length', 
-            truncation=True, 
-            return_tensors="np"
-        )
-        try:
-            outputs: Dict[Any] = self.qry_module.model.run(data = [
-                text_responses['input_ids'], 
-                text_responses['attention_mask'], 
-                text_responses['token_type_ids']
-            ])
-            outputs = outputs.values() # BxLx768
-            content = content.reshape(len(texts), -1, 768)[:, 0].tolist() # Bx768
-            return content
-        except Exception as e:
-            return []
-
-    def run(self, texts: List[str], **kwargs) -> List[List[float]]:
-        embeds = self.embed(texts)
-        self.chunk_db.search(...)
-        return "Success"
+    def retrieve(self, texts: List[str], token: str) -> List[Dict[str, Any]]:
+        if not self.check_user(token):
+            return JSONResponse(content={"Error": "User not authenticated!"})
+        query_embed = self.query_module.embed(texts)
+        retrieve_chunks = self.database_manager.search(query_embed)
+        return retrieve_chunks
