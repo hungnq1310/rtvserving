@@ -41,7 +41,8 @@ class QdrantFaceDatabase(InterfaceDatabase):
         
     def create_colection(self, collection_name="db", dimension=768, distance='cosine') -> None:
         if self._client.collection_exists(collection_name):
-            self._client.delete_collection(collection_name)
+            logging.info(f"Collection {collection_name} already exists")
+            return
         # resolve distance
         distance = DISTANCE_MAPPING.get(distance, models.Distance.COSINE)
         self._client.create_collection(
