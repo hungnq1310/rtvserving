@@ -1,6 +1,4 @@
-import os
-from typing import Optional, List, Any
-from qdrant_client.http import models
+from typing import List, Any
 from abc import ABC, abstractmethod
 
 class InterfaceDatabase(ABC):
@@ -20,4 +18,8 @@ class InterfaceDatabase(ABC):
 
     @abstractmethod
     def delete(self, points_ids: List[int], **kwagrs) -> None:
+        ...
+
+    @abstractmethod
+    def search(self, **kwargs) -> List[Any]:
         ...
