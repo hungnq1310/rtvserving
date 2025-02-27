@@ -64,10 +64,10 @@ QDRANT_DB     = os.getenv("QDRANT_DB", "")
 KEYCLOAK_URL = os.getenv("KEYCLOAK_URL", "...")
 KEYCLOAK_REALM = os.getenv("KEYCLOAK_REALM", "...")
 KEYCLOAK_AUDIENCE = os.getenv("KEYCLOAK_AUDIENCE", "...")
-# KEYCLOAK_CLIENT_ID = os.getenv("KEYCLOAK_CLIENT_ID", "...")
-# KEYCLOAK_CLIENT_SECRET = os.getenv("KEYCLOAK_CLIENT_SECRET", "...")
-# KEYCLOAK_ADMIN_USERNAME = os.getenv("KEYCLOAK_ADMIN_USERNAME", "...")
-# KEYCLOAK_ADMIN_PASSWORD = os.getenv("KEYCLOAK_ADMIN_PASSWORD", "...")
+KEYCLOAK_CLIENT_ID = os.getenv("KEYCLOAK_CLIENT_ID", "...")
+KEYCLOAK_CLIENT_SECRET = os.getenv("KEYCLOAK_CLIENT_SECRET", "...")
+KEYCLOAK_ADMIN_USERNAME = os.getenv("KEYCLOAK_ADMIN_USERNAME", "...")
+KEYCLOAK_ADMIN_PASSWORD = os.getenv("KEYCLOAK_ADMIN_PASSWORD", "...")
 
 # URLs
 TOKEN_URL = f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/token"
@@ -121,6 +121,21 @@ def has_role(role_name: str):
             raise HTTPException(status_code=403, detail="Unauthorized access")
 
     return check_role
+
+# Hàm lấy Admin Token (dùng để tạo user)
+def get_admin_token():
+    data = {
+        "client_id": "admin-cli",
+        "username": KEYCLOAK_ADMIN_USERNAME,
+        "password": KEYCLOAK_ADMIN_PASSWORD,
+        "grant_type": "password"
+    }
+    response = requests.post(TOKEN_URL, data=data)
+
+    if response.status_code == 200:
+        return response.json()["access_token"]
+    else:
+        raise HTTPException(status_code=500, detail="Cannot get admin token from keycloak")
 
 # Model cho đăng ký & đăng nhập
 class UserRegister(BaseModel):
@@ -208,6 +223,64 @@ class FastAPIDeployment:
         self.app1 = app1
         self.app2 = app2
         self.db = QdrantFaceDatabase(url=QDRANT_DB)
+        
+    # API Đăng ký user mới
+    @app.post("/register", response_model=dict)
+    def register_user(seft, user: UserRegister):
+        token = get_admin_token()
+        
+        # Tạo user trên Keycloak
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        data = {
+            "username": user.username,
+            "email": user.email,
+            "enabled": True,
+            "credentials": [{"type": "password", "value": user.password, "temporary": False}]
+        }
+
+        response = requests.post(USER_URL, json=data, headers=headers)
+
+        if response.status_code == 201:
+            return {"message": "User created successfully"}
+        else:
+            raise HTTPException(status_code=response.status_code, detail=response.text)
+
+    @app.post("/login", response_model=dict)
+    def login_user(seft, user: UserLogin) -> JSONResponse:
+        data = {
+            "client_id": KEYCLOAK_CLIENT_ID,
+            "client_secret": KEYCLOAK_CLIENT_SECRET,
+            "grant_type": "password",
+            "username": user.username,
+            "password": user.password
+        }
+
+        response = requests.post(TOKEN_URL, data=data)
+
+        if response.status_code == 200:
+            token_data = response.json()
+            access_token = token_data["access_token"]
+            print(access_token)
+            # Lấy thông tin user từ Access Token
+            headers = {"Authorization": f"Bearer {access_token}"}
+            user_info_url = f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/userinfo"
+            user_info_response = requests.get(user_info_url, headers=headers)
+
+            if user_info_response.status_code == 200:
+                user_info = user_info_response.json()
+                return {
+                    "username": user_info.get("preferred_username"),
+                    "access_token": access_token,
+                    "expires_in": token_data["expires_in"],
+                    "refresh_token": token_data["refresh_token"],
+                    "token_type": token_data["token_type"],
+                    "scope": "openid"
+                }
+            else:
+                raise HTTPException(status_code=500, detail="Cannot get user info from keycloak")
+        else:
+            raise HTTPException(status_code=401, detail="Invalid username or password")
+
 
     @app.get("/hello", dependencies=[Depends(has_role("admin"))])
     def hello(self, name: str) -> JSONResponse:
