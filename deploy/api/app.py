@@ -2,9 +2,16 @@ import os
 from typing import List, Any
 import time
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends, HTTPException, Form
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2AuthorizationCodeBearer
+import requests
+from pydantic import BaseModel
+
+from jwt import PyJWKClient
+import jwt
+from typing import Annotated
 
 from transformers import AutoTokenizer
 from ray import serve
@@ -53,6 +60,21 @@ top_k = int(os.getenv("TOP_K", 5))
 threshold = float(os.getenv("THRESHOLD", 0.5))
 QDRANT_DB     = os.getenv("QDRANT_DB", "")
 
+# Keycloak Configuration
+KEYCLOAK_URL = os.getenv("KEYCLOAK_URL", "...")
+KEYCLOAK_REALM = os.getenv("KEYCLOAK_REALM", "...")
+KEYCLOAK_AUDIENCE = os.getenv("KEYCLOAK_AUDIENCE", "...")
+# KEYCLOAK_CLIENT_ID = os.getenv("KEYCLOAK_CLIENT_ID", "...")
+# KEYCLOAK_CLIENT_SECRET = os.getenv("KEYCLOAK_CLIENT_SECRET", "...")
+# KEYCLOAK_ADMIN_USERNAME = os.getenv("KEYCLOAK_ADMIN_USERNAME", "...")
+# KEYCLOAK_ADMIN_PASSWORD = os.getenv("KEYCLOAK_ADMIN_PASSWORD", "...")
+
+# URLs
+TOKEN_URL = f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/token"
+USER_URL = f"{KEYCLOAK_URL}/admin/realms/{KEYCLOAK_REALM}/users"
+JWKS_URL = f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/certs"
+ 
+
 print(f"Query model: {query_retriever_name}")
 print(f"Context model: {ctx_retriever_name}")
 print(f"URL: {url}")
@@ -67,11 +89,45 @@ print(f"QDRANT_DB: {QDRANT_DB}")
 # FastAPI
 ############
 
+oauth_2_scheme = OAuth2AuthorizationCodeBearer(
+    tokenUrl=f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/token",
+    authorizationUrl=f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/auth",
+    refreshUrl=f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/token",
+)
+
+# Hàm xác thực Access Token với Keycloak
+async def valid_access_token(access_token: Annotated[str, Depends(oauth_2_scheme)]):
+    optional_custom_headers = {"User-agent": "custom-user-agent"}
+    jwks_client = PyJWKClient(JWKS_URL, headers=optional_custom_headers)
+    try:
+        signing_key = jwks_client.get_signing_key_from_jwt(access_token)
+        data = jwt.decode(
+            access_token,
+            signing_key.key,
+            algorithms=["RS256"],
+            audience=KEYCLOAK_AUDIENCE,
+            options={"verify_exp": True},
+        )
+        return data
+    except jwt.exceptions.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+# Model cho đăng ký & đăng nhập
+class UserRegister(BaseModel):
+    username: str
+    password: str
+    email: str
+
+class UserLogin(BaseModel):
+    username: str
+    password: str
 
 app = FastAPI()
+
 origins = [
     "http://localhost",
     "http://localhost:8080",
+    "http://localhost:7777",
 ]
 app.add_middleware(
     CORSMiddleware,
@@ -89,7 +145,7 @@ class ModelEmbedding:
         
     def _init_model_and_tokenizer(self, model_name, model_version):
         tokenizer = AutoTokenizer.from_pretrained(
-            os.path.join("/models", model_name, str(model_version))
+            os.path.join("models", model_name, str(model_version))
         )
         model = TritonModel(
             model=model_name,                 # Model name.
@@ -143,21 +199,21 @@ class FastAPIDeployment:
         self.app2 = app2
         self.db = QdrantFaceDatabase(url=QDRANT_DB)
 
-    @app.get("/hello")
+    @app.get("/hello", dependencies=[Depends(oauth_2_scheme)])
     def hello(self, name: str) -> JSONResponse:
         return JSONResponse(content={"message": f"Hello, {name}!"})
 
-    @app.post("/query_embed")
+    @app.post("/query_embed", dependencies=[Depends(oauth_2_scheme)])
     async def query_embed(self, textRequest: List[str]) -> JSONResponse:
         [outputs] = await asyncio.gather(self.app1.remote(textRequest))
         return outputs
 
-    @app.post("/ctx_embed")
+    @app.post("/ctx_embed", dependencies=[Depends(oauth_2_scheme)])
     async def ctx_embed(self, textRequest: List[str]) -> JSONResponse:
         [outputs] = await asyncio.gather(self.app2.remote(textRequest))
         return outputs
     
-    @app.post("/search")
+    @app.post("/search", dependencies=[Depends(oauth_2_scheme)])
     async def search(self, textRequest: List[str]) -> JSONResponse:
         # -------------------INFERENCE--------------------
         query_embed_response: JSONResponse = await self.query_embed(textRequest)
