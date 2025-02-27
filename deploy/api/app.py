@@ -111,6 +111,16 @@ async def valid_access_token(access_token: Annotated[str, Depends(oauth_2_scheme
         return data
     except jwt.exceptions.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Not authenticated")
+    
+def has_role(role_name: str):
+    async def check_role(
+        token_data: Annotated[dict, Depends(valid_access_token)]
+    ):
+        roles = token_data["resource_access"]["my-api-client"]["roles"]
+        if role_name not in roles:
+            raise HTTPException(status_code=403, detail="Unauthorized access")
+
+    return check_role
 
 # Model cho đăng ký & đăng nhập
 class UserRegister(BaseModel):
@@ -199,7 +209,7 @@ class FastAPIDeployment:
         self.app2 = app2
         self.db = QdrantFaceDatabase(url=QDRANT_DB)
 
-    @app.get("/hello", dependencies=[Depends(oauth_2_scheme)])
+    @app.get("/hello", dependencies=[Depends(has_role("admin"))])
     def hello(self, name: str) -> JSONResponse:
         return JSONResponse(content={"message": f"Hello, {name}!"})
 
