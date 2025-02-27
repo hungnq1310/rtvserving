@@ -4,7 +4,7 @@
       {
         "name": "pythera/triton.mbert-rtvserving",
         "ref": "main",
-        "token": "abc"
+        "token": ""
       }
     ]
   }
