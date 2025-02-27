@@ -18,7 +18,7 @@ services:
     healthcheck:
       test: ["CMD", "bash", "-c", "echo -n '' > /dev/tcp/127.0.0.1/8000"]
       interval: 30s
-      timeout: 1m
+      timeout: 2m
       retries: 2
     deploy:
       resources:
@@ -70,8 +70,8 @@ services:
       - ./api:/api
       - ./rtvserving:/rtvserving
 
-    depends_on:
-      triton:
-        condition: service_healthy
-    command: >
-      bash -c "serve run /deploy.yaml"
+    # depends_on:
+    #   triton:
+    #     condition: service_healthy
+    # command: >
+    #   bash -c "serve run /deploy.yaml"
