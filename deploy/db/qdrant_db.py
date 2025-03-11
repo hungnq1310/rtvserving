@@ -56,14 +56,11 @@ class QdrantFaceDatabase(InterfaceDatabase):
         """ Insert points into collection """
         self._client.upsert(
             collection_name=chunker_id,
-            points=[
-                models.PointStruct(
-                    id=point['id'],
-                    vector=point['vector'],
-                    payload=point['payload'],
-                )
-                for point in chunks
-            ],
+            points=models.Batch(
+                ids=chunks['ids'],
+                payloads=chunks['payloads'],
+                vectors=chunks['vectors'],
+            ),
         )
 
     def search(self, chunk_emb: List[float], chunker_id: str, top_k:int = 5):
