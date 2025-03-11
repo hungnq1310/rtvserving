@@ -8,10 +8,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from ray import serve
 from dotenv import load_dotenv
 
-from deploy.rtvserving.db.qdrant_db import QdrantChunksDB
-from deploy.rtvserving.module.module import BaseModule
-from deploy.rtvserving.utils.stuff import _init_model_and_tokenizer
-from deploy.rtvserving.services.v1 import RetrievalServicesV1
+from rtvserving.db.qdrant_db import QdrantChunksDB
+from rtvserving.module.module import BaseModule
+from rtvserving.utils.stuff import _init_model_and_tokenizer
+from rtvserving.services.v1 import RetrievalServicesV1
 
 import asyncio
 # from utils.score_compute import compute_similarity

@@ -1,9 +1,7 @@
-
-from interface import InterfaceService
-from db.interface import InterfaceDatabase
-
 from typing import List, Dict, Any
-from deploy.rtvserving.module.module import BaseModule
+from rtvserving.module.module import BaseModule
+from rtvserving.services.interface import InterfaceService
+from rtvserving.db.interface import InterfaceDatabase
 
 class RetrievalServicesV1(InterfaceService):
     """Manager for Retrieval Services"""
