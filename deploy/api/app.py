@@ -157,43 +157,19 @@ class FastAPIDeployment:
     def hello(self, name: str) -> JSONResponse:
         return JSONResponse(content={"message": f"Hello, {name}!"})
 
-    @app.post("/query_embed")
-    async def query_embed(self, textRequest: List[str]) -> JSONResponse:
-        [outputs] = await asyncio.gather(self.app1.remote(textRequest))
-        return outputs
-
-    @app.post("/ctx_embed")
-    async def ctx_embed(self, textRequest: List[str]) -> JSONResponse:
-        [outputs] = await asyncio.gather(self.app2.remote(textRequest))
-        return outputs
+    @app.post("/retrieve_chunks")
+    async def retrieve_chunks(self, query: str, chunker_id: str) -> JSONResponse:
+        # add remote with async func
+        chunks = self.service_app.services.retrieve_chunks.remote(query, chunker_id)
+        if not chunks:
+            return JSONResponse(content={"Error": "No chunks found!"})
+        return JSONResponse(content=chunks)
     
-    @app.post("/search")
-    async def search(self, textRequest: List[str]) -> JSONResponse:
-        # -------------------INFERENCE--------------------
-        query_embed_response: JSONResponse = await self.query_embed(textRequest)
-        query_embed = query_embed_response.body
-        contexts = self.db.search(
-            collection_name=collection_name, 
-            vector=query_embed, 
-            top_k=top_k, 
-            threshold=threshold
-        )
-        if contexts is None:
-            return JSONResponse(content={"Error": "No results found!"})
-        
-        context_embeds: JSONResponse = await self.ctx_embed(contexts)
-        context_passages = self.db.get_passage(context_embeds.body)
-        
-        if context_passages is None:
-            return JSONResponse(content={"Error": "No results found!"})
-        
-        if use_rerank:
-            scores = compute_similarity(query_embed, context_embeds)
-            passages_arranged = context_passages[scores.argsort()]
-            return JSONResponse(content=passages_arranged)
-
-        return JSONResponse(content=context_passages)
-
+    @app.post("/insert_chunks")
+    async def insert_chunks(self, chunks: List[dict], chunker_id: str) -> JSONResponse:
+        # add remote with async func
+        response = self.service_app.services.insert_chunks.remote(chunks, chunker_id)
+        return JSONResponse(content=response)
 
 # 2: Deploy the deployment.
 mainapp = FastAPIDeployment.bind(service_app)
