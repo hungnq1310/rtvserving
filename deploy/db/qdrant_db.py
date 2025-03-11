@@ -15,7 +15,7 @@ DISTANCE_MAPPING = {
 }
 
 
-class QdrantFaceDatabase(InterfaceDatabase):
+class QdrantChunksDB(InterfaceDatabase):
     """ 
     Vector database using Qdrant for storing and searching chunks and documents.
     """

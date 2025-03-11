@@ -1,17 +1,13 @@
 import os
 from typing import List, Any
-import time
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from transformers import AutoTokenizer
 from ray import serve
-import tritonserver
 from dotenv import load_dotenv
 
-from trism import TritonModel
 from db.qdrant_db import QdrantChunksDB
 from module.module import BaseModule
 from utils.stuff import _init_model_and_tokenizer
