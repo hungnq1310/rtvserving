@@ -6,9 +6,9 @@ class InterfaceService(ABC):
     '''Interface for Face Recognition Service'''
 
     @abstractmethod 
-    def post_docs(self, texts: List[Any], **kwargs) -> None:
+    def insert_chunks(self, chunks: List[Any], **kwargs) -> None:
         ...
 
     @abstractmethod
-    def retrieve(self, texts: List[Any], **kwargs) -> List[Any]:
+    def retrieve_chunks(self, query: str, **kwargs) -> List[Any]:
         ...
