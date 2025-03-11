@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 
 from trism import TritonModel
 from db.interface import QdrantFaceDatabase
+from module.module import BaseModule
 
 import asyncio
 # from utils.score_compute import compute_similarity
@@ -85,8 +86,9 @@ app.add_middleware(
 @serve.deployment
 class ModelEmbedding:
     def __init__(self, model_name, model_version):
-        self.model, self.tokenizer = self._init_model_and_tokenizer(model_name, model_version)
-        
+        model, tokenizer = self._init_model_and_tokenizer(model_name, model_version)
+        self.module = BaseModule(tokenizer, model)
+
     def _init_model_and_tokenizer(self, model_name, model_version):
         tokenizer = AutoTokenizer.from_pretrained(
             os.path.join("/models", model_name, str(model_version))
@@ -106,28 +108,13 @@ class ModelEmbedding:
         return model, tokenizer
     
     async def __call__(self, textRequest: List[str]):
-        text_responses = self.tokenizer(
-            textRequest, 
-            padding='max_length', 
-            truncation=True, 
-            return_tensors="np"
-        )
         try:
             start_time = time.time()
-            outputs = self.model.run(data = [
-                text_responses['input_ids'], 
-                text_responses['attention_mask'], 
-                text_responses['token_type_ids']
-            ])
+            outputs: List[Any] = self.module.embed(textRequest)
             end_time = time.time()
             print("Process time: ", end_time - start_time)
-
-            ## onnx parse
-            # content = outputs["embeddings"][:, 0].tolist()
-            ## trt parse
-            content = outputs['last_hidden_state']
-            content = content.reshape(len(textRequest), -1, 768)[:, 0].tolist()
-            return JSONResponse(content=content)
+            
+            return JSONResponse(content=outputs)
         except Exception as e:
             return JSONResponse(content={"Error": "Inference failed with error: " + str(e)})
 
