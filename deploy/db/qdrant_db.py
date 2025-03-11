@@ -57,10 +57,10 @@ class QdrantFaceDatabase(InterfaceDatabase):
         self._client.upsert(
             collection_name=chunker_id,
             points=models.Batch(
-                ids=chunks['ids'],
                 payloads=chunks['payloads'],
                 vectors=chunks['vectors'],
             ),
+            # ids of chunks are not provided, Qdrant Client will generate them automatically as random UUIDs.
         )
 
     def search(self, chunk_emb: List[float], chunker_id: str, top_k:int = 5):
