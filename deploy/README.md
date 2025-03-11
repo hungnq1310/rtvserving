@@ -93,6 +93,12 @@ NOTES: remember to `cd ./deploy`
      docker-compose up -d
      ```
 
+## Rebuild config deploy
+If deploy failed relating to `configs/deploy.yaml`, run the below script, and rerun docker compose:
+```
+serve build api.app:mainapp -o configs/deploy.yaml
+```
+
 
 ## API Endpoints
 
