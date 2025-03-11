@@ -39,45 +39,45 @@ class QdrantFaceDatabase(InterfaceDatabase):
             logging.error("None client connection")
             return None
         
-    def create_colection(self, collection_name="db", dimension=768, distance='cosine') -> None:
-        if self._client.collection_exists(collection_name):
-            logging.info(f"Collection {collection_name} already exists")
+    def create_colection(self, chunker_id="db", dimension=768, distance='cosine') -> None:
+        if self._client.collection_exists(chunker_id):
+            logging.info(f"Collection {chunker_id} already exists")
             return
         # resolve distance
         distance = DISTANCE_MAPPING.get(distance, models.Distance.COSINE)
         self._client.create_collection(
-            collection_name=collection_name,
+            collection_name=chunker_id,
             vectors_config=models.VectorParams(
                 size=dimension, distance=distance
             ),
         )
 
-    def insert(self, points: List[dict], collection_name: str) -> None:
+    def insert(self, chunks: List[dict], chunker_id: str) -> None:
         """ Insert points into collection """
         self._client.upsert(
-            collection_name=collection_name,
+            collection_name=chunker_id,
             points=[
                 models.PointStruct(
                     id=point['id'],
                     vector=point['vector'],
                     payload=point['payload'],
                 )
-                for point in points
+                for point in chunks
             ],
         )
 
-    def search(self, vector: List[float], collection_name: str, top_k:int = 5):
+    def search(self, chunk_emb: List[float], chunker_id: str, top_k:int = 5):
         # Top-k passages
         return self._client.query_points(
-            collection_name=collection_name,
-            query_vector=vector,
+            collection_name=chunker_id,
+            query_vector=chunk_emb,
             limit=top_k,
         )
 
-    def get_document(self, doc_id: str, collection_name: str):
+    def get_chunks_by_doc_id(self, doc_id: str, chunker_id: str):
         """ Get document information using doc_id """
         return self._client.scroll(
-            collection_name=collection_name,
+            collection_name=chunker_id,
             scroll_filter=models.Filter(
                 must=[
                     models.FieldCondition(
