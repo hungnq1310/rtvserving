@@ -36,8 +36,6 @@ applications:
 
   deployments:
 
-  - name: ModelEmbedding
-
-  - name: ModelEmbedding_1
+  - name: ServicesV1
 
   - name: FastAPIDeployment
