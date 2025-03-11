@@ -5,7 +5,7 @@ from typing import Optional, List, Any
 from qdrant_client.http import models
 from qdrant_client import QdrantClient
 
-from deploy.db.interface import InterfaceDatabase
+from deploy.rtvserving.db.interface import InterfaceDatabase
 
 DISTANCE_MAPPING = {
     'euclidean': models.Distance.EUCLID,

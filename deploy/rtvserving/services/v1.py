@@ -3,9 +3,7 @@ from interface import InterfaceService
 from db.interface import InterfaceDatabase
 
 from typing import List, Dict, Any
-from fastapi.responses import JSONResponse
-
-from module.module import BaseModule
+from deploy.rtvserving.module.module import BaseModule
 
 class RetrievalServicesV1(InterfaceService):
     """Manager for Retrieval Services"""
