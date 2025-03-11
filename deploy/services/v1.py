@@ -13,39 +13,37 @@ class RetrievalServicesV1(InterfaceService):
         self,
         query_module: BaseModule,
         context_module: BaseModule, 
-        user_db: InterfaceDatabase,
-        doc_db: InterfaceDatabase,
         chunk_db: InterfaceDatabase,
-        session_db: InterfaceDatabase
     ):
         super().__init__()
         self.query_module = query_module
         self.context_module = context_module
-        self.user_db = user_db
-        self.doc_db = doc_db
         self.chunk_db = chunk_db
-        self.session_db = session_db
 
-    def register_user(self, user_name, authen):
-        ...
-    
-    def check_user(self, token: str):
-        ...
-    
-    def post_docs(self, docs: List[Any]):
-        chunks = ...
-        texts = [doc['text'] for doc in docs]
-        payload = [doc['payload'] for doc in docs]
-        embeds = self.context_module.embed(chunks)
-        ...
-
-    def retrieve(self, texts: List[str], token: str) -> List[Dict[str, Any]]:
-        if not self.check_user(token):
-            return JSONResponse(content={"Error": "User not authenticated!"})
-        query_embed = self.query_module.embed(texts)
-        retrieve_chunks = self.chunk_db.search(query_embed)
+    def retrieve_chunks(self, query: str, chunker_id, **kwargs) -> List[Dict[str, Any]]:
+        # cast List to query here
+        query_embed = self.query_module.embed([query])
+        # search for chunks
+        retrieve_chunks = self.chunk_db.search(
+            chunk_emb=query_embed[0], # List[List[float]] -> List[float] 
+            chunker_id=chunker_id,
+            top_k=kwargs.get('top_k', 5)
+        )
         return retrieve_chunks
 
-    def update_session_state(self, history: List[Any]):
-        ...
-    
+    def insert_chunks(self, chunks: List[dict], chunker_id: str) -> dict:
+        if not chunks:
+            return {"Error": "No chunks to insert!"}
+        
+        # format the chunks
+        texts = [chunk['text'] for chunk in chunks]
+        embeds = self.context_module.embed(texts)
+        insert_dicts = {
+            'payloads': [chunk['payload'] for chunk in chunks],
+            'vectors': embeds,
+        }
+        try:
+            self.chunk_db.insert(insert_dicts, chunker_id)
+        except Exception as e:
+            return {"Error": f"Error inserting chunks: {e}"}
+        return {"Success": "Chunks inserted!"}
