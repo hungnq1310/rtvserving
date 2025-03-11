@@ -70,7 +70,7 @@ print(f"QDRANT_DB: {QDRANT_DB}")
 # FastAPI Definition
 ############
 
-
+#?: flexible version
 app = FastAPI()
 origins = [
     "http://localhost",
