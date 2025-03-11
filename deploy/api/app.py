@@ -12,7 +12,7 @@ import tritonserver
 from dotenv import load_dotenv
 
 from trism import TritonModel
-from db.interface import QdrantFaceDatabase
+from db.qdrant_db import QdrantChunksDB
 from module.module import BaseModule
 from utils.stuff import _init_model_and_tokenizer
 from services.v1 import RetrievalServicesV1
@@ -67,7 +67,7 @@ print(f"QDRANT_DB: {QDRANT_DB}")
 
 
 ############
-# FastAPI
+# FastAPI Definition
 ############
 
 
@@ -84,7 +84,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-## Deploy model
+############
+# Services Definition
+############
 @serve.deployment
 class ServicesV1: # this into services 
     def __init__(self, 
@@ -97,21 +99,27 @@ class ServicesV1: # this into services
         db_url: str
     ):
         # query
-        self.query_module = self.init_module(
+        query_module = self.init_module(
             model_name=query_retriever_name,
             model_version=query_version,
             model_server_url=model_server_url,
             is_grpc=is_grpc
         )
         # ctx
-        self.context_module = self.init_module(
+        context_module = self.init_module(
             model_name=ctx_retriever_name,
             model_version=ctx_version,
             model_server_url=model_server_url,
             is_grpc=is_grpc
         )
         # db
-        self.db = QdrantFaceDatabase(url=db_url)
+        db = QdrantChunksDB(url=db_url)
+        # Sevices V1 
+        self.services = RetrievalServicesV1(
+            query_module=query_module,
+            context_module=context_module,
+            chunk_db=db
+        )
 
     def init_module(self, model_name, model_version, model_server_url, is_grpc):
         model, tokenizer = _init_model_and_tokenizer(
@@ -122,7 +130,9 @@ class ServicesV1: # this into services
         )
         return BaseModule(tokenizer=tokenizer, model=model)
 
-
+####################
+# Deploy the service
+####################
 service_app = ServicesV1.bind(
     query_retriever_name=query_retriever_name,
     query_version=query_version,
@@ -133,6 +143,9 @@ service_app = ServicesV1.bind(
     db_url=QDRANT_DB
 )
 
+####################
+# FastAPI Deployment
+####################
 @serve.deployment
 @serve.ingress(app)
 class FastAPIDeployment:
