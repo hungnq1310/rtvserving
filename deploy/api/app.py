@@ -8,12 +8,14 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from transformers import AutoTokenizer
 from ray import serve
-import ray
+import tritonserver
 from dotenv import load_dotenv
 
 from trism import TritonModel
 from db.interface import QdrantFaceDatabase
 from module.module import BaseModule
+from utils.stuff import _init_model_and_tokenizer
+from services.v1 import RetrievalServicesV1
 
 import asyncio
 # from utils.score_compute import compute_similarity
@@ -84,51 +86,59 @@ app.add_middleware(
 
 ## Deploy model
 @serve.deployment
-class ModelEmbedding:
-    def __init__(self, model_name, model_version):
-        model, tokenizer = self._init_model_and_tokenizer(model_name, model_version)
-        self.module = BaseModule(tokenizer, model)
-
-    def _init_model_and_tokenizer(self, model_name, model_version):
-        tokenizer = AutoTokenizer.from_pretrained(
-            os.path.join("/models", model_name, str(model_version))
+class ServicesV1: # this into services 
+    def __init__(self, 
+        query_retriever_name: str,
+        query_version: int,
+        ctx_retriever_name: str,
+        ctx_version: int,
+        model_server_url: str,
+        is_grpc: bool,
+        db_url: str
+    ):
+        # query
+        self.query_module = self.init_module(
+            model_name=query_retriever_name,
+            model_version=query_version,
+            model_server_url=model_server_url,
+            is_grpc=is_grpc
         )
-        model = TritonModel(
-            model=model_name,                 # Model name.
-            version=model_version,            # Model version.
-            url=url,                          # Triton Server URL.
-            grpc=grpc                         # Use gRPC or Http.
+        # ctx
+        self.context_module = self.init_module(
+            model_name=ctx_retriever_name,
+            model_version=ctx_version,
+            model_server_url=model_server_url,
+            is_grpc=is_grpc
         )
-        # View metadata.
-        for inp in model.inputs:
-            print(f"name: {inp.name}, shape: {inp.shape}, datatype: {inp.dtype}\n")
-        for out in model.outputs:
-            print(f"name: {out.name}, shape: {out.shape}, datatype: {out.dtype}\n") 
+        # db
+        self.db = QdrantFaceDatabase(url=db_url)
 
-        return model, tokenizer
-    
-    async def __call__(self, textRequest: List[str]):
-        try:
-            start_time = time.time()
-            outputs: List[Any] = self.module.embed(textRequest)
-            end_time = time.time()
-            print("Process time: ", end_time - start_time)
-            
-            return JSONResponse(content=outputs)
-        except Exception as e:
-            return JSONResponse(content={"Error": "Inference failed with error: " + str(e)})
+    def init_module(self, model_name, model_version, model_server_url, is_grpc):
+        model, tokenizer = _init_model_and_tokenizer(
+            model_name=model_name,
+            model_version=model_version,
+            model_server_url=model_server_url,
+            is_grpc=is_grpc
+        )
+        return BaseModule(tokenizer=tokenizer, model=model)
 
-app1 = ModelEmbedding.bind(query_retriever_name, query_version)
-app2 = ModelEmbedding.bind(ctx_retriever_name, ctx_version)
+
+service_app = ServicesV1.bind(
+    query_retriever_name=query_retriever_name,
+    query_version=query_version,
+    ctx_retriever_name=ctx_retriever_name,
+    ctx_version=ctx_version,
+    model_server_url=url,
+    is_grpc=grpc,
+    db_url=QDRANT_DB
+)
 
 @serve.deployment
 @serve.ingress(app)
 class FastAPIDeployment:
     # FastAPI will automatically parse the HTTP request for us.
-    def __init__(self, app1: ModelEmbedding, app2: ModelEmbedding):
-        self.app1 = app1
-        self.app2 = app2
-        self.db = QdrantFaceDatabase(url=QDRANT_DB)
+    def __init__(self, service_app):
+        self.service_app = service_app
 
     @app.get("/hello")
     def hello(self, name: str) -> JSONResponse:
@@ -173,4 +183,4 @@ class FastAPIDeployment:
 
 
 # 2: Deploy the deployment.
-mainapp = FastAPIDeployment.bind(app1, app2)
+mainapp = FastAPIDeployment.bind(service_app)
