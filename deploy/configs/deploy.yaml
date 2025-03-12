@@ -36,8 +36,6 @@ applications:
 
   deployments:
 
-  - name: RetrieveServicesV1
-
-  - name: InsertServicesV1
+  - name: ServicesV1
 
   - name: FastAPIDeployment
