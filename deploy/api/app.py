@@ -14,17 +14,6 @@ from rtvserving.utils.stuff import _init_model_and_tokenizer
 from rtvserving.services.v1 import RetrievalServicesV1
 
 import asyncio
-# from utils.score_compute import compute_similarity
-
-import numpy as np
-
-def compute_similarity(q_reps, p_reps):
-    if not isinstance(q_reps, np.ndarray):
-        q_reps = np.array(q_reps)
-    if not isinstance(p_reps, np.ndarray):
-        p_reps = np.array(p_reps)
-    return np.matmul(q_reps, p_reps.T)
-
 
 load_dotenv()
 # Parse environment variables
