@@ -52,14 +52,12 @@ class QdrantChunksDB(InterfaceDatabase):
             ),
         )
 
-    def insert(self, chunks: List[dict], chunker_id: str) -> None:
+    def insert(self, chunks: dict, chunker_id: str) -> None:
         """ Insert points into collection """
-        self._client.upsert(
+        self._client.upload_collection(
             collection_name=chunker_id,
-            points=models.Batch(
-                payloads=chunks['payloads'],
-                vectors=chunks['vectors'],
-            ),
+            payload=chunks['payloads'],
+            vectors=chunks['vectors'],
             # ids of chunks are not provided, Qdrant Client will generate them automatically as random UUIDs.
         )
 
