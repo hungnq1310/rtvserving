@@ -52,8 +52,16 @@ class QdrantChunksDB(InterfaceDatabase):
             ),
         )
 
-    def insert(self, chunks: dict, chunker_id: str) -> None:
+    def insert(self, chunks: dict, chunker_id: str, **kwargs) -> None:
         """ Insert points into collection """
+
+        # Check if chunkers exists
+        if chunker_id not in self._client.collections():
+            dim = kwargs.get('dimension', len(chunks['vectors'][0])) # specify dim or auto detect
+            distance = kwargs.get('distance', 'cosine')
+            self.create_colection(chunker_id, dimension=dim, distance=distance)
+        
+        # Insert chunks
         self._client.upload_collection(
             collection_name=chunker_id,
             payload=chunks['payloads'],
