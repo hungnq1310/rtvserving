@@ -40,9 +40,6 @@ class QdrantChunksDB(InterfaceDatabase):
             return None
         
     def create_colection(self, chunker_id="db", dimension=768, distance='cosine') -> None:
-        if self._client.collection_exists(chunker_id):
-            logging.info(f"Collection {chunker_id} already exists")
-            return
         # resolve distance
         distance = DISTANCE_MAPPING.get(distance, models.Distance.COSINE)
         self._client.create_collection(
@@ -56,11 +53,12 @@ class QdrantChunksDB(InterfaceDatabase):
         """ Insert points into collection """
 
         # Check if chunkers exists
-        if chunker_id not in self._client.collections():
+        if self._client.collection_exists(chunker_id):
             dim = kwargs.get('dimension', len(chunks['vectors'][0])) # specify dim or auto detect
             distance = kwargs.get('distance', 'cosine')
             self.create_colection(chunker_id, dimension=dim, distance=distance)
-        
+        else:
+            logging.info(f"Collection {chunker_id} already exists")
         # Insert chunks
         self._client.upload_collection(
             collection_name=chunker_id,
