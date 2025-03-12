@@ -30,6 +30,12 @@ class RetrievalServicesV1(InterfaceService):
         return retrieve_chunks
 
     def insert_chunks(self, chunks: List[dict], chunker_id: str) -> dict:
+        """
+        chunks = [{
+            "text": ...,
+            "doc_id": ...,
+        }]
+        """
         if not chunks:
             return {"Error": "No chunks to insert!"}
         
@@ -39,7 +45,7 @@ class RetrievalServicesV1(InterfaceService):
         embeds = self.context_module.embed(texts)
         insert_dicts = {
             'ids': ids,
-            'payloads': [chunk['payload'] for chunk in chunks],
+            'payloads': [chunk for chunk in chunks],
             'vectors': embeds,
         }
         try:
