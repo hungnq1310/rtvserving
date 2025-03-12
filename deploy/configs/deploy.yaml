@@ -1,4 +1,4 @@
-# This file was generated using the `serve build` command on Ray v2.41.0.
+# This file was generated using the `serve build` command on Ray v2.43.0.
 
 proxy_location: EveryNode
 
@@ -6,7 +6,7 @@ http_options:
 
   host: 0.0.0.0
 
-  port: 7777
+  port: 8000
 
 grpc_options:
 
@@ -36,6 +36,8 @@ applications:
 
   deployments:
 
-  - name: ServicesV1
+  - name: RetrieveServicesV1
+
+  - name: InsertServicesV1
 
   - name: FastAPIDeployment
