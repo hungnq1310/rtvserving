@@ -95,26 +95,26 @@ class RetrieveServicesV1: # this into services
         db_url: str
     ):
         # query
-        query_module = self.init_module(
+        self.query_module = self.init_module(
             model_name=query_retriever_name,
             model_version=query_version,
             model_server_url=model_server_url,
             is_grpc=is_grpc
         )
         # ctx
-        context_module = self.init_module(
+        self.context_module = self.init_module(
             model_name=ctx_retriever_name,
             model_version=ctx_version,
             model_server_url=model_server_url,
             is_grpc=is_grpc
         )
         # db
-        db = QdrantChunksDB(url=db_url)
+        self.db = QdrantChunksDB(url=db_url)
         # Sevices V1 
         self.services = RetrievalServicesV1(
-            query_module=query_module,
-            context_module=context_module,
-            chunk_db=db
+            query_module=self.query_module,
+            context_module=self.context_module,
+            chunk_db=self.db
         )
 
     def init_module(self, model_name, model_version, model_server_url, is_grpc):
@@ -141,26 +141,26 @@ class InsertServicesV1: # this into services
         db_url: str
     ):
         # query
-        query_module = self.init_module(
+        self.query_module = self.init_module(
             model_name=query_retriever_name,
             model_version=query_version,
             model_server_url=model_server_url,
             is_grpc=is_grpc
         )
         # ctx
-        context_module = self.init_module(
+        self.context_module = self.init_module(
             model_name=ctx_retriever_name,
             model_version=ctx_version,
             model_server_url=model_server_url,
             is_grpc=is_grpc
         )
         # db
-        db = QdrantChunksDB(url=db_url)
+        self.db = QdrantChunksDB(url=db_url)
         # Sevices V1 
         self.services = RetrievalServicesV1(
-            query_module=query_module,
-            context_module=context_module,
-            chunk_db=db
+            query_module=self.query_module,
+            context_module=self.context_module,
+            chunk_db=self.db
         )
 
     def init_module(self, model_name, model_version, model_server_url, is_grpc):
