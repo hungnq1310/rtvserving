@@ -3,6 +3,8 @@ from rtvserving.module.module import BaseModule
 from rtvserving.services.interface import InterfaceService
 from rtvserving.db.interface import InterfaceDatabase
 
+import hashlib
+
 class RetrievalServicesV1(InterfaceService):
     """Manager for Retrieval Services"""
     def __init__(
@@ -33,8 +35,10 @@ class RetrievalServicesV1(InterfaceService):
         
         # format the chunks
         texts = [chunk['text'] for chunk in chunks]
+        ids = [hashlib.md5(text.encode()).hexdigest() for text in texts]
         embeds = self.context_module.embed(texts)
         insert_dicts = {
+            'ids': ids,
             'payloads': [chunk['payload'] for chunk in chunks],
             'vectors': embeds,
         }

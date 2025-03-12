@@ -62,6 +62,7 @@ class QdrantChunksDB(InterfaceDatabase):
         # Insert chunks
         self._client.upload_collection(
             collection_name=chunker_id,
+            ids=chunks['ids'],
             payload=chunks['payloads'],
             vectors=chunks['vectors'],
             # ids of chunks are not provided, Qdrant Client will generate them automatically as random UUIDs.
