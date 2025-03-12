@@ -84,7 +84,7 @@ app.add_middleware(
 # Services Definition
 ############
 @serve.deployment
-class ServicesV1: # this into services 
+class RetrieveServicesV1: # this into services 
     def __init__(self, 
         query_retriever_name: str,
         query_version: int,
@@ -125,11 +125,70 @@ class ServicesV1: # this into services
             is_grpc=is_grpc
         )
         return BaseModule(tokenizer=tokenizer, model=model)
+    
+    async def __call__(self, query: str, chunker_id: str):
+        return self.services.retrieve_chunks(query, chunker_id)
+
+@serve.deployment
+class InsertServicesV1: # this into services 
+    def __init__(self, 
+        query_retriever_name: str,
+        query_version: int,
+        ctx_retriever_name: str,
+        ctx_version: int,
+        model_server_url: str,
+        is_grpc: bool,
+        db_url: str
+    ):
+        # query
+        query_module = self.init_module(
+            model_name=query_retriever_name,
+            model_version=query_version,
+            model_server_url=model_server_url,
+            is_grpc=is_grpc
+        )
+        # ctx
+        context_module = self.init_module(
+            model_name=ctx_retriever_name,
+            model_version=ctx_version,
+            model_server_url=model_server_url,
+            is_grpc=is_grpc
+        )
+        # db
+        db = QdrantChunksDB(url=db_url)
+        # Sevices V1 
+        self.services = RetrievalServicesV1(
+            query_module=query_module,
+            context_module=context_module,
+            chunk_db=db
+        )
+
+    def init_module(self, model_name, model_version, model_server_url, is_grpc):
+        model, tokenizer = _init_model_and_tokenizer(
+            model_name=model_name,
+            model_version=model_version,
+            model_server_url=model_server_url,
+            is_grpc=is_grpc
+        )
+        return BaseModule(tokenizer=tokenizer, model=model)
+    
+    async def __call__(self, chunks: List[dict], chunker_id: str):
+        return self.services.insert_chunks(chunks, chunker_id)
+    
 
 ####################
 # Deploy the service
 ####################
-service_app = ServicesV1.bind(
+service_app1 = RetrieveServicesV1.bind(
+    query_retriever_name=query_retriever_name,
+    query_version=query_version,
+    ctx_retriever_name=ctx_retriever_name,
+    ctx_version=ctx_version,
+    model_server_url=url,
+    is_grpc=grpc,
+    db_url=QDRANT_DB
+)
+service_app2 = InsertServicesV1.bind(
     query_retriever_name=query_retriever_name,
     query_version=query_version,
     ctx_retriever_name=ctx_retriever_name,
@@ -146,8 +205,9 @@ service_app = ServicesV1.bind(
 @serve.ingress(app)
 class FastAPIDeployment:
     # FastAPI will automatically parse the HTTP request for us.
-    def __init__(self, service_app):
-        self.service_app = service_app
+    def __init__(self, retrieve_app, insert_app):
+        self.retrieve_app = retrieve_app
+        self.insert_app = insert_app
 
     @app.get("/hello")
     def hello(self, name: str) -> JSONResponse:
@@ -156,7 +216,7 @@ class FastAPIDeployment:
     @app.post("/retrieve_chunks")
     async def retrieve_chunks(self, query: str, chunker_id: str) -> JSONResponse:
         # add remote with async func
-        chunks = self.service_app.services.retrieve_chunks.remote(query, chunker_id)
+        chunks = await self.retrieve_app(query, chunker_id)
         if not chunks:
             return JSONResponse(content={"Error": "No chunks found!"})
         return JSONResponse(content=chunks)
@@ -164,8 +224,8 @@ class FastAPIDeployment:
     @app.post("/insert_chunks")
     async def insert_chunks(self, chunks: List[dict], chunker_id: str) -> JSONResponse:
         # add remote with async func
-        response = self.service_app.services.insert_chunks.remote(chunks, chunker_id)
+        response = await self.insert_app(chunks, chunker_id)
         return JSONResponse(content=response)
 
 # 2: Deploy the deployment.
-mainapp = FastAPIDeployment.bind(service_app)
+mainapp = FastAPIDeployment.bind(service_app1, service_app2)
