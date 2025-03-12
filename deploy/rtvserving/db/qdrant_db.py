@@ -53,7 +53,7 @@ class QdrantChunksDB(InterfaceDatabase):
         """ Insert points into collection """
 
         # Check if chunkers exists
-        if self._client.collection_exists(chunker_id):
+        if not self._client.collection_exists(chunker_id):
             dim = kwargs.get('dimension', len(chunks['vectors'][0])) # specify dim or auto detect
             distance = kwargs.get('distance', 'cosine')
             self.create_colection(chunker_id, dimension=dim, distance=distance)
