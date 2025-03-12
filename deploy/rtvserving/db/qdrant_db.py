@@ -26,7 +26,7 @@ class QdrantChunksDB(InterfaceDatabase):
         url: Optional[str] = None,
         api_key: Optional[str] = None,
     ) -> None:
-        self._client = self.connect_client(host, port, url, api_key)
+        self._client = self.connect_client(url, api_key)
 
     def connect_client(self, url, api_key):
         if url is not None and api_key is not None:
@@ -83,3 +83,9 @@ class QdrantChunksDB(InterfaceDatabase):
                 ],
             ),
         )
+    
+    def delete(self, points_ids, **kwagrs):
+        ...
+    
+    def update(self, points_ids, **kwagrs):
+        ...
