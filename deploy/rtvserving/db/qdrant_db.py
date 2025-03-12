@@ -69,11 +69,17 @@ class QdrantChunksDB(InterfaceDatabase):
 
     def search(self, chunk_emb: List[float], chunker_id: str, top_k:int = 5):
         # Top-k passages
-        return self._client.query_points(
+        chunks = self._client.search(
             collection_name=chunker_id,
             query_vector=chunk_emb,
             limit=top_k,
         )
+        chunks = [{
+            "id": chunk.id,
+            "score": chunk.score,
+            "payload": chunk.payload
+        } for chunk in chunks]
+        return chunks
 
     def get_chunks_by_doc_id(self, doc_id: str, chunker_id: str):
         """ Get document information using doc_id """
