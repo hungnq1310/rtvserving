@@ -1,6 +1,7 @@
 from typing import List, Dict, Any
 from trism import TritonModel
 from transformers import AutoTokenizer
+import numpy as np
 
 
 class BaseModule:
@@ -22,8 +23,9 @@ class BaseModule:
                 text_responses['attention_mask'], 
                 text_responses['token_type_ids']
             ])
-            outputs = outputs.values()[0] # BxLx768
-            content = content.reshape(len(texts), -1, 768)[:, 0].tolist() # Bx768
-            return content
+            outputs = list(outputs.values())[0] # BxLx768
+            outputs = outputs.reshape(len(texts), -1, 768)[:, 0].tolist() # Bx768
+            return outputs
         except Exception as e:
+            print(f"Error embedding text: {e}")
             return []
