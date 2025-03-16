@@ -1,8 +1,8 @@
 import os
-from typing import List, Any
+from typing import List, Any, Optional, Union
 
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse 
 from fastapi.middleware.cors import CORSMiddleware
 
 from ray import serve
@@ -121,6 +121,12 @@ class ServicesV1: # this into services
     async def insert_chunks(self, chunks: List[dict], chunker_id: str):
         return self.services.insert_chunks(chunks, chunker_id)
     
+    async def delete_chunks(self, chunk_ids: Union[str, List[str], None], doc_id: Optional[str], chunker_id: str):
+        return self.db.delete(chunk_ids, doc_id, chunker_id)
+    
+    async def delete_chunker(self, chunker_id: str):
+        return self.db.delete_chunker(chunker_id)
+    
 
 ####################
 # Deploy the service
@@ -163,6 +169,25 @@ class FastAPIDeployment:
         # add remote with async func
         response = await self.service_app.insert_chunks.remote(chunks, chunker_id)
         return JSONResponse(content=response)
+    
+    @app.delete("/delete/{chunk_ids}/{chunker_id}")
+    async def delete_chunk_ids(self, chunk_ids: Union[str, List[str]], chunker_id: str) -> JSONResponse:
+        # add remote with async func
+        response = await self.service_app.delete_chunks.remote(chunk_ids=chunk_ids, chunker_id=chunker_id)
+        return JSONResponse(content=response)
+    
+    @app.delete("/delete/{doc_id}/{chunker_id}")
+    async def delete_doc_id(self, doc_id: str, chunker_id: str) -> JSONResponse:
+        # add remote with async func
+        response = await self.service_app.delete_chunks.remote(doc_id=doc_id, chunker_id=chunker_id)
+        return JSONResponse(content=response)
+    
+    @app.delete("/delete_chunker/{chunker_id}")
+    async def delete_chunker_id(self, chunker_id: str) -> JSONResponse:
+        # add remote with async func
+        response = await self.service_app.delete_chunker.remote(chunker_id)
+        return JSONResponse(content=response)
+
 
 # 2: Deploy the deployment.
 mainapp = FastAPIDeployment.bind(service_app1)

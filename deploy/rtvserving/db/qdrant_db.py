@@ -95,8 +95,34 @@ class QdrantChunksDB(InterfaceDatabase):
             ),
         )
     
-    def delete(self, points_ids, **kwagrs):
-        ...
+    def delete(self, chunk_ids: str | List[str] | None, doc_id: str | None, chunker_id: str, **kwagrs):
+        if chunk_ids is not None:
+            if isinstance(chunk_ids, str):
+                chunk_ids = [chunk_ids]
+            self._client.delete(
+                collection_name=chunker_id,
+                points_selector=models.PointIdsList(
+                    points=chunk_ids,
+                ),
+            )
+        elif doc_id is not None:
+            self._client.delete(
+                collection_name=chunker_id,
+                points_selector=models.FilterSelector(filter=models.Filter(
+                    must=[
+                        models.FieldCondition(
+                            key="doc_id",
+                            match=models.MatchValue(value=f"{doc_id}"),
+                        ),
+                    ])
+                ),
+            )
+        else:
+            return {'status': 'failed', 'message': 'No group id found'}
     
+    def delete_chunker(self, chunker_id: str):
+        self._client.delete_collection(collection_name=chunker_id)
+        return {'status': 'success', 'message': f"Collection {chunker_id} deleted!"}
+
     def update(self, points_ids, **kwagrs):
         ...
