@@ -18,7 +18,7 @@ services:
     healthcheck:
       test: ["CMD", "bash", "-c", "echo -n '' > /dev/tcp/127.0.0.1/8000"]
       interval: 30s
-      timeout: 1m
+      timeout: 2m
       retries: 2
     deploy:
       resources:
@@ -28,40 +28,37 @@ services:
             device_ids: ['0']
             capabilities: [gpu]
     command: >
-      bash -c """python3 -u /hf.py && tritonserver \
-        --model-repository=/models \
-        --model-config-name=tensorrt
-      """
+      bash -c """python3 -u /hf.py && tritonserver --model-repository=/models --model-config-name=tensorrt"""
   
-  client:
-    image: heronq02/pyclient:latest
-    container_name: pyclient
-    environment:
-      QUERY_MODEL_NAME: mbert.query
-      QUERY_MODEL_VERSION: 2
-      QUERY_BATCH_SIZE: 0
-      CTX_MODEL_NAME: mbert.context
-      CTX_MODEL_VERSION: 2
-      CTX_BATCH_SIZE: 0
-      TRITON_URL: localhost:6000
-      PROTOCOL: HTTP  # or GRPC
-      VERBOSE: "true"
-      ASYNC_SET: "false"
-      QDRANT_DB: <qdrant_url>
-      QDRANT_COLLECTION_NAME: retrieval
-      TOP_K: 5
-      THRESHOLD: 0.5
-      USE_RERANK: "false"
+  # client:
+  #   image: heronq02/pyclient:latest
+  #   container_name: pyclient
+    # environment:
+      # QUERY_MODEL_NAME: mbert.query
+      # QUERY_MODEL_VERSION: 2
+      # QUERY_BATCH_SIZE: 0
+      # CTX_MODEL_NAME: mbert.context
+      # CTX_MODEL_VERSION: 2
+      # CTX_BATCH_SIZE: 0
+      # TRITON_URL: localhost:6000
+      # PROTOCOL: HTTP  # or GRPC
+      # VERBOSE: "true"
+      # ASYNC_SET: "false"
+      # QDRANT_DB: <qdrant_url>
+      # QDRANT_COLLECTION_NAME: retrieval
+      # TOP_K: 5
+      # THRESHOLD: 0.5
+      # USE_RERANK: "false"
     
-    network_mode: host
-    tty: true
-    volumes:
-      - ./configs/deploy.yaml:/deploy.yaml
-      - ./models:/models
-      - ./api:/api
+    # network_mode: host
+    # tty: true
+    # volumes:
+    #   - ./configs/deploy.yaml:/deploy.yaml
+    #   - ./models:/models
+    #   - ./api:/api
 
-    depends_on:
-      triton:
-        condition: service_healthy
-    command: >
-      bash -c "serve run /deploy.yaml"
+    # depends_on:
+    #   triton:
+    #     condition: service_healthy
+    # command: >
+    #   bash -c "serve run /deploy.yaml"
