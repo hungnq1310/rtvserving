@@ -177,8 +177,11 @@ class ServicesV1: # this into services
     async def insert_chunks(self, chunks: List[dict], chunker_id: str):
         return self.services.insert_chunks(chunks, chunker_id)
     
-    async def delete_chunks(self, chunk_ids: Union[str, List[str], None], doc_id: Optional[str], chunker_id: str):
-        return self.db.delete(chunk_ids, doc_id, chunker_id)
+    async def delete_chunks(self, chunk_ids: Union[str, List[str]], chunker_id: str):        
+        return self.db.delete(chunk_ids=chunk_ids, chunker_id=chunker_id)
+    
+    async def delete_doc_id(self, doc_id: str, chunker_id: str):
+        return self.db.delete(doc_id=doc_id, chunker_id=chunker_id)
     
     async def delete_chunker(self, chunker_id: str):
         return self.db.delete_chunker(chunker_id)
@@ -226,19 +229,23 @@ class FastAPIDeployment:
         response = await self.service_app.insert_chunks.remote(chunks, chunker_id)
         return JSONResponse(content=response)
     
-    @app.delete("/delete/{chunk_ids}/{chunker_id}", dependencies=[Depends(oauth_2_scheme)])
-    async def delete_chunk_ids(self, chunk_ids: Union[str, List[str]], chunker_id: str) -> JSONResponse:
-        # add remote with async func
+    @app.delete("/delete-chunks", dependencies=[Depends(oauth_2_scheme)])
+    async def delete_chunk_ids(self, chunk_ids: List[str], chunker_id: str) -> JSONResponse:        # add remote with async func
         response = await self.service_app.delete_chunks.remote(chunk_ids=chunk_ids, chunker_id=chunker_id)
         return JSONResponse(content=response)
     
-    @app.delete("/delete/{doc_id}/{chunker_id}", dependencies=[Depends(oauth_2_scheme)])
-    async def delete_doc_id(self, doc_id: str, chunker_id: str) -> JSONResponse:
-        # add remote with async func
-        response = await self.service_app.delete_chunks.remote(doc_id=doc_id, chunker_id=chunker_id)
+    @app.delete("/delete-chunk", dependencies=[Depends(oauth_2_scheme)])
+    async def delete_chunk_ids(self, chunk_id: str, chunker_id: str) -> JSONResponse:        # add remote with async func
+        response = await self.service_app.delete_chunks.remote(chunk_ids=[chunk_id], chunker_id=chunker_id)
         return JSONResponse(content=response)
     
-    @app.delete("/delete_chunker/{chunker_id}", dependencies=[Depends(oauth_2_scheme)])
+    @app.delete("/delete-doc", dependencies=[Depends(oauth_2_scheme)])
+    async def delete_doc_id(self, doc_id: str, chunker_id: str) -> JSONResponse:
+        # add remote with async func
+        response = await self.service_app.delete_doc_id.remote(doc_id=doc_id, chunker_id=chunker_id)
+        return JSONResponse(content=response)
+    
+    @app.delete("/delete-chunker", dependencies=[Depends(oauth_2_scheme)])
     async def delete_chunker_id(self, chunker_id: str) -> JSONResponse:
         # add remote with async func
         response = await self.service_app.delete_chunker.remote(chunker_id)
