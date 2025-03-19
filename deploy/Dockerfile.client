@@ -13,7 +13,7 @@ RUN apt update && apt install -y libsm6 libxext6 ffmpeg libfontconfig1 libxrende
 
 COPY --from=compiler /venv /venv
 COPY ./api ./api
-COPY ./db ./db
+COPY ./rtvserving ./rtvserving
 
 ENV PATH="/venv/bin:$PATH"
 CMD serve run api.app:mainapp -r
