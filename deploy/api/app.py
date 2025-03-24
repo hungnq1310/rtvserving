@@ -52,35 +52,20 @@ QDRANT_DB     = os.getenv("QDRANT_DB", "")
 KEYCLOAK_URL = os.getenv("KEYCLOAK_URL", "...")
 KEYCLOAK_REALM = os.getenv("KEYCLOAK_REALM", "...")
 KEYCLOAK_AUDIENCE = os.getenv("KEYCLOAK_AUDIENCE", "...")
-# KEYCLOAK_CLIENT_ID = os.getenv("KEYCLOAK_CLIENT_ID", "...")
-# KEYCLOAK_CLIENT_SECRET = os.getenv("KEYCLOAK_CLIENT_SECRET", "...")
-# KEYCLOAK_ADMIN_USERNAME = os.getenv("KEYCLOAK_ADMIN_USERNAME", "...")
-# KEYCLOAK_ADMIN_PASSWORD = os.getenv("KEYCLOAK_ADMIN_PASSWORD", "...")
-
+ALGORITHM = os.getenv("ALGORITHM", "RS256")
 # URLs
 TOKEN_URL = f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/token"
-USER_URL = f"{KEYCLOAK_URL}/admin/realms/{KEYCLOAK_REALM}/users"
+AUTHORIZE_URL = f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/auth"
 JWKS_URL = f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/certs"
- 
-
-print(f"Query model: {query_retriever_name}")
-print(f"Context model: {ctx_retriever_name}")
-print(f"URL: {url}")
-print(f"Protocol: {protocol}")
-print(f"Verbose: {verbose}")
-print(f"Async set: {async_set}")
-print(f"Use rerank: {use_rerank}")
-print(f"QDRANT_DB: {QDRANT_DB}")
-
 
 ############
 # FastAPI Definition
 ############
 
 oauth_2_scheme = OAuth2AuthorizationCodeBearer(
-    tokenUrl=f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/token",
-    authorizationUrl=f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/auth",
-    refreshUrl=f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/token",
+    tokenUrl=TOKEN_URL,
+    authorizationUrl=AUTHORIZE_URL,
+    refreshUrl=TOKEN_URL,
 )
 
 # Hàm xác thực Access Token với Keycloak
@@ -92,7 +77,7 @@ async def valid_access_token(access_token: Annotated[str, Depends(oauth_2_scheme
         data = jwt.decode(
             access_token,
             signing_key.key,
-            algorithms=["RS256"],
+            algorithms=[ALGORITHM],
             audience=KEYCLOAK_AUDIENCE,
             options={"verify_exp": True},
         )

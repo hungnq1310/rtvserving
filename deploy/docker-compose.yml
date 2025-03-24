@@ -28,7 +28,8 @@ services:
             device_ids: ['0']
             capabilities: [gpu]
     command: >
-      bash -c """python3 -u /hf.py && tritonserver --model-repository=/models --model-config-name=tensorrt"""
+      bash -c """python3 -u /hf.py 
+      && tritonserver --model-repository=/models"""
   
   qdrant:
     image: qdrant/qdrant:latest
@@ -43,7 +44,7 @@ services:
       retries: 2
 
   client:
-    image: heronq02/pyclient:latest
+    image: heronq02/rtvclient:24.12
     container_name: pyclient
     environment:
       QUERY_MODEL_NAME: mbert.query
@@ -58,6 +59,10 @@ services:
       ASYNC_SET: "false"
       QDRANT_DB: localhost:6333
       QDRANT_COLLECTION_NAME: retrieval
+      KEYCLOAK_URL: http://localhost:6554
+      KEYCLOAK_REALM: myrealm
+      KEYCLOAK_AUDIENCE: myclient
+      ALGORITHM: RS256
       TOP_K: 5
       THRESHOLD: 0.5
       USE_RERANK: "false"
@@ -70,8 +75,17 @@ services:
       - ./api:/api
       - ./rtvserving:/rtvserving
 
-    # depends_on:
-    #   triton:
-    #     condition: service_healthy
-    # command: >
-    #   bash -c "serve run /deploy.yaml"
+    depends_on:
+      triton:
+        condition: service_healthy
+    command: >
+      bash -c "serve run /deploy.yaml"
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1.4
+    ports:
+      - "6554:8080"
+    environment:
+      - KC_BOOTSTRAP_ADMIN_USERNAME=admin
+      - KC_BOOTSTRAP_ADMIN_PASSWORD=admin
+    command: ["start-dev"]
