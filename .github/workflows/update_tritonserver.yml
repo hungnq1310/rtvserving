@@ -43,5 +43,5 @@ jobs:
           tags: ${{ secrets.DOCKER_USERNAME }}/modelhub:${{ github.event.repository.name }}-triton${{ matrix.tritonserver }}-${{ matrix.model_type }}
           build-args: |
             HF_REPOS=${{ secrets.HF_REPOS }}
-            HF_TOKEN=${{ secrets.HF_TOKEN }} 
+            HF_TOKENS=${{ secrets.HF_TOKEN }} 
             HF_MODEL_REF=${{ matrix.model_type }}
