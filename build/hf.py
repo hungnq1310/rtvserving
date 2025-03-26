@@ -60,6 +60,9 @@ def build_template(repos: str, tokens: str) -> str:
 if __name__ == "__main__":
 
   file = Path(HF_CONFIG_FILE).expanduser().resolve()
+  model_repo = Path(HF_MODEL_REPO)
+  model_repo.mkdir(parents=True, exist_ok=True)
+
   conf = None
   if not file.is_file():
     print("No huggingface config found!")
@@ -68,8 +71,6 @@ if __name__ == "__main__":
     tokens = os.getenv("TOKENS", None)
     conf = json.loads(build_template(repos, tokens))
   else:
-    repo = Path(HF_MODEL_REPO)
-    repo.mkdir(parents=True, exist_ok=True)
     with file.open("r") as f:
       conf = json.load(f)
   # download models
@@ -83,6 +84,6 @@ if __name__ == "__main__":
     assert _name is not None, "Invalid huggingface config! Model name cannot be none!"
     _token = model.get("token", token)
     _ref = model.get("ref", None)
-    snapshot_download(repo_id=_name, revision=_ref, token=_token, local_dir=repo, ignore_patterns=[".*"])
-  cache = Path(repo, ".cache")
+    snapshot_download(repo_id=_name, revision=_ref, token=_token, local_dir=model_repo, ignore_patterns=[".*"])
+  cache = Path(model_repo, ".cache")
   shutil.rmtree(cache)
