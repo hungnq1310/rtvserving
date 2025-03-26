@@ -8,6 +8,7 @@ from jinja2 import Template
 
 HF_CONFIG_FILE = os.getenv("HF_CONFIG_FILE", "/hf.json")
 HF_MODEL_REPO = os.getenv("HF_MODEL_REPO", "/models")
+HF_MODEL_REF = os.getenv("HF_MODEL_REF", "main")
 
 def build_template(repos: str, tokens: str) -> str:
   """
@@ -40,7 +41,7 @@ def build_template(repos: str, tokens: str) -> str:
   #  create data from tokens and repos
   data_list = []
   for repo, token in zip(repos, tokens):
-      data_list.append({"name": repo, "ref": "main", "token": token})
+      data_list.append({"name": repo, "ref": HF_MODEL_REF, "token": token})
   data = {
       "models": data_list
   }
