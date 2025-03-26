@@ -47,7 +47,7 @@ jobs:
           push: true
           file: ./build/Dockerfile.model
           platforms: linux/amd64
-          tags: ${{ secrets.DOCKER_USERNAME }}/modelhub:$REPO_NAME-triton${{ matrix.tritonserver }}-${{ matrix.model_type }}
+          tags: ${{ secrets.DOCKER_USERNAME }}/modelhub:${{ github.event.repository.name }}-triton${{ matrix.tritonserver }}-${{ matrix.model_type }}
           build-args: |
             MODEL_TYPE=$MODEL_TYPE
             REPOS=$REPOS
