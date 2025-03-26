@@ -60,8 +60,8 @@ if __name__ == "__main__":
   if not file.is_file():
     print("No huggingface config found!")
     # Build jinja template from githubaction
-    repos = os.getenv("REPOS", None)
-    tokens = os.getenv("TOKENS", None)
+    repos = os.getenv("HF_REPOS", None)
+    tokens = os.getenv("HF_TOKENS", None)
     conf = json.loads(build_template(repos, tokens))
   else:
     with file.open("r") as f:

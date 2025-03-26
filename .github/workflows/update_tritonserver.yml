@@ -49,6 +49,6 @@ jobs:
           platforms: linux/amd64
           tags: ${{ secrets.DOCKER_USERNAME }}/modelhub:${{ github.event.repository.name }}-triton${{ matrix.tritonserver }}-${{ matrix.model_type }}
           build-args: |
-            MODEL_TYPE=$MODEL_TYPE
-            REPOS=$REPOS
-            TOKEN=$TOKEN
+            HF_REPOS=$REPOS
+            HF_TOKEN=$TOKEN
+            HF_MODEL_REF=$MODEL_TYPE
