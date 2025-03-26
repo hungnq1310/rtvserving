@@ -25,33 +25,25 @@ def build_template(repos: str, tokens: str) -> str:
           "token": "{{ model.token }}"
         }{% if not loop.last %},{% endif %}
         {% endfor %}
-      ],
-      "token": "{{ token }}"
+      ]
     }
     """
   template = Template(template_str)
   tokens=tokens.split(",") # list[str]
   repos=repos.split(",") # list[str]
 
-  #  create data from tokens and repos
+  # check if tokens and repos are the same length
   if len(tokens) == 1:
-      data_list = []
-      for repo in repos:
-          data_list.append({"name": repo, "ref": "main", "token": ""})
-      data = {
-          "models": data_list,
-          "token": tokens[0] # general token for all models
-      }
-  elif len(tokens) == len(repos):
-      data_list = []
-      for repo, token in zip(repos, tokens):
-          data_list.append({"name": repo, "ref": "main", "token": token})
-      data = {
-          "models": data_list,
-          "token": ""
-      }
+    tokens = [tokens[0] for _ in range(len(repos))]
   else:
-     raise ValueError("Invalid number of tokens and repos! Number of tokens must be equal to number of repos or 1")
+      assert len(repos) == len(tokens), "Invalid number of tokens and repos!"
+  #  create data from tokens and repos
+  data_list = []
+  for repo, token in zip(repos, tokens):
+      data_list.append({"name": repo, "ref": "main", "token": token})
+  data = {
+      "models": data_list
+  }
   # render
   rendered_json = template.render(data)
   return rendered_json
@@ -70,9 +62,6 @@ if __name__ == "__main__":
     repos = os.getenv("REPOS", None)
     tokens = os.getenv("TOKENS", None)
     conf = json.loads(build_template(repos, tokens))
-    print("Generated config: ", conf)
-    print("repos: ", repos)
-    print("tokens: ", tokens)
   else:
     with file.open("r") as f:
       conf = json.load(f)
