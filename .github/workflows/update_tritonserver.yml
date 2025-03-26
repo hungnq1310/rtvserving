@@ -16,13 +16,6 @@ jobs:
         tritonserver: [24.12]
         model_type: ['onnx', 'openvino', 'tensorrt']
 
-    env:
-      TRT_VERSION: ${{ matrix.tritonserver }}
-      MODEL_TYPE: ${{ matrix.model_type }}
-      REPOS: ${{ secrets.HF_REPOS }}
-      TOKEN: ${{ secrets.HF_TOKEN }} 
-      REPO_NAME: ${{ github.event.repository.name }}"
-
     steps:
       - name: Remove unnecessary files
         run: |
@@ -49,6 +42,6 @@ jobs:
           platforms: linux/amd64
           tags: ${{ secrets.DOCKER_USERNAME }}/modelhub:${{ github.event.repository.name }}-triton${{ matrix.tritonserver }}-${{ matrix.model_type }}
           build-args: |
-            HF_REPOS=$REPOS
-            HF_TOKEN=$TOKEN
-            HF_MODEL_REF=$MODEL_TYPE
+            HF_REPOS=${{ secrets.HF_REPOS }}
+            HF_TOKEN=${{ secrets.HF_TOKEN }} 
+            HF_MODEL_REF=${{ matrix.model_type }}
