@@ -14,7 +14,7 @@ jobs:
     strategy:
       matrix:
         tritonserver: [24.12]
-        model_type: ['onnx', 'openvino', 'tensorrt']
+        model_type: ['onnx', 'openvino', 'tensorrt_2412']
 
     steps:
       - name: Remove unnecessary files
@@ -43,5 +43,5 @@ jobs:
           tags: ${{ secrets.DOCKER_USERNAME }}/modelhub:${{ github.event.repository.name }}-triton${{ matrix.tritonserver }}-${{ matrix.model_type }}
           build-args: |
             HF_REPOS=${{ secrets.HF_REPOS }}
-            HF_TOKENS=${{ secrets.HF_TOKEN }} 
+            HF_TOKENS=${{ secrets.HF_TOKENS }} 
             HF_MODEL_REF=${{ matrix.model_type }}
