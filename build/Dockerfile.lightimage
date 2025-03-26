@@ -1,0 +1,13 @@
+FROM hieupth/tritonserver:24.12 as builder
+
+ARG HF_REPOS
+ARG HF_TOKENS
+ARG HF_MODEL_REF
+
+ENV HF_REPOS=$HF_REPOS
+ENV HF_TOKENS=$HF_TOKENS
+ENV HF_MODEL_REF=$HF_MODEL_REF
+
+ADD . .
+RUN pip install transformers Jinja2 huggingface_hub
+RUN python3 build/hf.py

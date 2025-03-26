@@ -34,11 +34,35 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
       -
-        name: Build and push
+        name: Build and push NVidia TritonServer Image
         uses: docker/build-push-action@v5
         with:
           push: true
-          file: ./build/Dockerfile.model
+          file: ./build/Dockerfile.origin
+          platforms: linux/amd64
+          tags: ${{ secrets.DOCKER_USERNAME }}/modelhub:${{ github.event.repository.name }}-triton${{ matrix.tritonserver }}-${{ matrix.model_type }}
+          build-args: |
+            HF_REPOS=${{ secrets.HF_REPOS }}
+            HF_TOKENS=${{ secrets.HF_TOKENS }} 
+            HF_MODEL_REF=${{ matrix.model_type }}
+      -
+        name: Build and push Hieupth Light Image
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          file: ./build/Dockerfile.lightimage
+          platforms: linux/amd64
+          tags: ${{ secrets.DOCKER_USERNAME }}/modelhub:${{ github.event.repository.name }}-triton${{ matrix.tritonserver }}-${{ matrix.model_type }}
+          build-args: |
+            HF_REPOS=${{ secrets.HF_REPOS }}
+            HF_TOKENS=${{ secrets.HF_TOKENS }} 
+            HF_MODEL_REF=${{ matrix.model_type }}
+      -
+        name: Build and push Hieupth Light Image CPU Only
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          file: ./build/Dockerfile.lightimage.cpuonly
           platforms: linux/amd64
           tags: ${{ secrets.DOCKER_USERNAME }}/modelhub:${{ github.event.repository.name }}-triton${{ matrix.tritonserver }}-${{ matrix.model_type }}
           build-args: |
