@@ -40,7 +40,7 @@ jobs:
           push: true
           file: ./build/Dockerfile.origin
           platforms: linux/amd64
-          tags: ${{ secrets.DOCKER_USERNAME }}/modelhub:${{ github.event.repository.name }}-triton${{ matrix.tritonserver }}-${{ matrix.model_type }}
+          tags: ${{ secrets.DOCKER_USERNAME }}/modelhub:${{ github.event.repository.name }}-nvidia-tritonserver${{ matrix.tritonserver }}-${{ matrix.model_type }}
           build-args: |
             HF_REPOS=${{ secrets.HF_REPOS }}
             HF_TOKENS=${{ secrets.HF_TOKENS }} 
@@ -52,7 +52,7 @@ jobs:
           push: true
           file: ./build/Dockerfile.lightimage
           platforms: linux/amd64
-          tags: ${{ secrets.DOCKER_USERNAME }}/modelhub:${{ github.event.repository.name }}-triton${{ matrix.tritonserver }}-${{ matrix.model_type }}
+          tags: ${{ secrets.DOCKER_USERNAME }}/modelhub:${{ github.event.repository.name }}-hieupth-tritonserver${{ matrix.tritonserver }}-${{ matrix.model_type }}
           build-args: |
             HF_REPOS=${{ secrets.HF_REPOS }}
             HF_TOKENS=${{ secrets.HF_TOKENS }} 
@@ -64,7 +64,7 @@ jobs:
           push: true
           file: ./build/Dockerfile.lightimage.cpuonly
           platforms: linux/amd64
-          tags: ${{ secrets.DOCKER_USERNAME }}/modelhub:${{ github.event.repository.name }}-triton${{ matrix.tritonserver }}-${{ matrix.model_type }}
+          tags: ${{ secrets.DOCKER_USERNAME }}/modelhub:${{ github.event.repository.name }}-hieupth-tritonserver${{ matrix.tritonserver }}-cpuonly-${{ matrix.model_type }}
           build-args: |
             HF_REPOS=${{ secrets.HF_REPOS }}
             HF_TOKENS=${{ secrets.HF_TOKENS }} 
