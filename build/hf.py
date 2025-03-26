@@ -70,6 +70,9 @@ if __name__ == "__main__":
     repos = os.getenv("REPOS", None)
     tokens = os.getenv("TOKENS", None)
     conf = json.loads(build_template(repos, tokens))
+    print("Generated config: ", conf)
+    print("repos: ", repos)
+    print("tokens: ", tokens)
   else:
     with file.open("r") as f:
       conf = json.load(f)
