@@ -10,4 +10,4 @@ ENV TOKENS=$TOKENS
 
 ADD . .
 RUN pip install transformers Jinja2 huggingface_hub
-RUN python3 hf.py
+RUN python3 build/hf.py
