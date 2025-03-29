@@ -1,6 +1,6 @@
 services:
   triton:
-    image: hieupth/tritonserver:24.08
+    image: hieupth/tritonserver:24.12
     container_name: rtvserving
     environment:
       HF_CONFIG_FILE: /hf.json
@@ -73,7 +73,6 @@ services:
       - ./configs/deploy.yaml:/deploy.yaml
       - ./models:/models
       - ./api:/api
-      - ./rtvserving:/rtvserving
 
     depends_on:
       triton:
