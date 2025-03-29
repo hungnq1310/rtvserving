@@ -17,7 +17,6 @@ from rtvserving.utils.stuff import _init_model_and_tokenizer
 from rtvserving.services.v1 import RetrievalServicesV1
 
 
-
 class Settings(BaseSettings):
     query_model_name: str = None
     query_model_version: int = None
@@ -32,7 +31,6 @@ class Settings(BaseSettings):
     protocol: str = "HTTP"
     verbose: bool = False
     async_set: bool = False
-    use_rerank: bool = False
     qdrant_db: str = None
     qdrant_collection_name: str = "retrieval"
     top_k: int = 5
@@ -123,6 +121,7 @@ db = QdrantChunksDB(url=settings.qdrant_db)
 services = RetrievalServicesV1(
     query_module=query_module,
     context_module=context_module,
+    rerank_module=rerank_module,
     chunk_db=db
 )
 
@@ -137,11 +136,18 @@ def hello(name: str) -> JSONResponse:
     return JSONResponse(content={"message": f"Hello, {name}!"})
 
 @app.post("/retrieve_chunks", dependencies=[Depends(oauth_2_scheme)])
-async def retrieve_chunks(query: str, chunker_id: str) -> JSONResponse:
+async def retrieve_chunks(query: str, chunker_id: str, is_rerank: bool = False) -> JSONResponse:
     # add remote with async func
     chunks = services.retrieve_chunks(query, chunker_id)
     if not chunks:
         return JSONResponse(content={"Error": "No chunks found!"})
+    
+    # rerank
+    if is_rerank:   
+        chunks = services.rerank(
+            query=query,
+            chunks=chunks,
+        )
     return JSONResponse(content=chunks)
 
 @app.post("/insert_chunks", dependencies=[Depends(oauth_2_scheme)])
