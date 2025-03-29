@@ -124,42 +124,42 @@ services = RetrievalServicesV1(
 
 
 @app.get("/hello", dependencies=[Depends(oauth_2_scheme)])
-def hello(self, name: str) -> JSONResponse:
+def hello(name: str) -> JSONResponse:
     return JSONResponse(content={"message": f"Hello, {name}!"})
 
 @app.post("/retrieve_chunks", dependencies=[Depends(oauth_2_scheme)])
-async def retrieve_chunks(self, query: str, chunker_id: str) -> JSONResponse:
+async def retrieve_chunks(query: str, chunker_id: str) -> JSONResponse:
     # add remote with async func
-    chunks = await services.retrieve_chunks(query, chunker_id)
+    chunks = services.retrieve_chunks(query, chunker_id)
     if not chunks:
         return JSONResponse(content={"Error": "No chunks found!"})
     return JSONResponse(content=chunks)
 
 @app.post("/insert_chunks", dependencies=[Depends(oauth_2_scheme)])
-async def insert_chunks(self, chunks: List[dict], chunker_id: str) -> JSONResponse:
+async def insert_chunks(chunks: List[dict], chunker_id: str) -> JSONResponse:
     # add remote with async func
-    response = await services.insert_chunks(chunks, chunker_id)
+    response = services.insert_chunks(chunks, chunker_id)
     return JSONResponse(content=response)
 
 @app.delete("/delete-chunks", dependencies=[Depends(oauth_2_scheme)])
-async def delete_chunk_ids(self, chunk_ids: List[str], chunker_id: str) -> JSONResponse:        # add remote with async func
-    response = await services.chunk_db.delete_chunks(chunk_ids=chunk_ids, chunker_id=chunker_id)
-    return JSONResponse(content=response)
+async def delete_chunk_ids(chunk_ids: List[str], chunker_id: str) -> JSONResponse:        # add remote with async func
+    response = services.chunk_db.delete(chunk_ids=chunk_ids, chunker_id=chunker_id, doc_id=None)
+    return JSONResponse(content=response)   
 
 @app.delete("/delete-chunk", dependencies=[Depends(oauth_2_scheme)])
-async def delete_chunk_ids(self, chunk_id: str, chunker_id: str) -> JSONResponse:        # add remote with async func
-    response = await services.chunk_db.delete_chunks(chunk_ids=[chunk_id], chunker_id=chunker_id)
+async def delete_chunk_ids(chunk_id: str, chunker_id: str) -> JSONResponse:        # add remote with async func
+    response = services.chunk_db.delete(chunk_ids=[chunk_id], chunker_id=chunker_id, doc_id=None)
     return JSONResponse(content=response)
 
 @app.delete("/delete-doc", dependencies=[Depends(oauth_2_scheme)])
-async def delete_doc_id(self, doc_id: str, chunker_id: str) -> JSONResponse:
+async def delete_doc_id(doc_id: str, chunker_id: str) -> JSONResponse:
     # add remote with async func
-    response = await services.chunk_db.delete_doc_id(doc_id=doc_id, chunker_id=chunker_id)
+    response = services.chunk_db.delete(doc_id=doc_id, chunker_id=chunker_id, chunk_ids=None)
     return JSONResponse(content=response)
 
 @app.delete("/delete-chunker", dependencies=[Depends(oauth_2_scheme)])
-async def delete_chunker_id(self, chunker_id: str) -> JSONResponse:
+async def delete_chunker_id(chunker_id: str) -> JSONResponse:
     # add remote with async func
-    response = await services.chunk_db.delete_chunker(chunker_id)
+    response = services.chunk_db.delete_chunker(chunker_id)
     return JSONResponse(content=response)
 
