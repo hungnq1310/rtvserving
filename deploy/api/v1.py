@@ -4,49 +4,52 @@ from typing import List, Any, Optional, Union
 from fastapi import Depends, HTTPException, Form, APIRouter
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2AuthorizationCodeBearer
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from jwt import PyJWKClient
 import jwt
 from typing import Annotated
-from dotenv import load_dotenv
 
-from ..rtvserving.db.qdrant_db import QdrantChunksDB
-from ..rtvserving.module.module import BaseModule
-from ..rtvserving.utils.stuff import _init_model_and_tokenizer
-from ..rtvserving.services.v1 import RetrievalServicesV1
 
-load_dotenv()
+from rtvserving.db.qdrant_db import QdrantChunksDB
+from rtvserving.module.module import BaseModule
+from rtvserving.utils.stuff import _init_model_and_tokenizer
+from rtvserving.services.v1 import RetrievalServicesV1
+
+
+
+class Settings(BaseSettings):
+    query_model_name: str = None
+    query_model_version: int = None
+    query_batch_size: int = None
+    ctx_model_name: str = None
+    ctx_model_version: int = None
+    ctx_batch_size: int = None
+    rerank_model_name: str = None
+    rerank_model_version: int = None
+    rerank_batch_size: int = None
+    triton_url: str = "localhost:8000"
+    protocol: str = "HTTP"
+    verbose: bool = False
+    async_set: bool = False
+    use_rerank: bool = False
+    qdrant_db: str = None
+    qdrant_collection_name: str = "retrieval"
+    top_k: int = 5
+    threshold: float = 0.5
+    keycloak_url: str = None
+    keycloak_realm: str = None
+    keycloak_audience: str = None
+    algorithm: str = "RS256"
+
+    model_config = SettingsConfigDict(env_file=".env")
+
 # Parse environment variables
-#
-query_retriever_name    = os.getenv("QUERY_MODEL_NAME")
-query_version = int(os.getenv("QUERY_MODEL_VERSION", ""))
-query_batch_size    = int(os.getenv("BATCH_SIZE", 1))
-#
-ctx_retriever_name    = os.getenv("CTX_MODEL_NAME") 
-ctx_version = int(os.getenv("CTX_MODEL_VERSION", ""))
-ctx_batch_size    = int(os.getenv("BATCH_SIZE", 10))
-
-#
-url           = os.getenv("TRITON_URL", "localhost:6000")
-protocol      = os.getenv("PROTOCOL", "HTTP")
-verbose       = os.getenv("VERBOSE", "False").lower() in ("true", "1", "t")
-async_set     = os.getenv("ASYNC_SET", "False").lower() in ("true", "1", "t")
-#
-grpc = protocol.lower() == "grpc"
-#
-use_rerank = os.getenv("USE_RERANK", "False").lower() in ("true", "1", "t")
-# 
-collection_name = os.getenv("QDRANT_COLLECTION_NAME", "retrieval")
-top_k = int(os.getenv("TOP_K", 5))
-threshold = float(os.getenv("THRESHOLD", 0.5))
-QDRANT_DB     = os.getenv("QDRANT_DB", "")
-
-# Keycloak Configuration
-KEYCLOAK_URL = os.getenv("KEYCLOAK_URL", "...")
-KEYCLOAK_REALM = os.getenv("KEYCLOAK_REALM", "...")
-KEYCLOAK_AUDIENCE = os.getenv("KEYCLOAK_AUDIENCE", "...")
-ALGORITHM = os.getenv("ALGORITHM", "RS256")
+settings = Settings()
+grpc = settings.protocol.lower() == "grpc"
 # URLs
+KEYCLOAK_URL = settings.keycloak_url
+KEYCLOAK_REALM = settings.keycloak_realm
 TOKEN_URL = f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/token"
 AUTHORIZE_URL = f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/auth"
 JWKS_URL = f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/certs"
@@ -70,8 +73,8 @@ async def valid_access_token(access_token: Annotated[str, Depends(oauth_2_scheme
         data = jwt.decode(
             access_token,
             signing_key.key,
-            algorithms=[ALGORITHM],
-            audience=KEYCLOAK_AUDIENCE,
+            algorithms=[settings.algorithm],
+            audience=settings.keycloak_audience,
             options={"verify_exp": True},
         )
         return data
@@ -95,20 +98,26 @@ def init_module( model_name, model_version, model_server_url, is_grpc):
 
 
 query_module = init_module(
-    model_name=query_retriever_name,
-    model_version=query_version,
-    model_server_url=url,
+    model_name=settings.query_model_name,
+    model_version=settings.query_model_version,
+    model_server_url=settings.triton_url,
     is_grpc=grpc
 )
         # ctx
 context_module = init_module(
-    model_name=ctx_retriever_name,
-    model_version=ctx_version,
-    model_server_url=url,
+    model_name=settings.ctx_model_name,
+    model_version=settings.ctx_model_version,
+    model_server_url=settings.triton_url,
+    is_grpc=grpc
+)
+rerank_module = init_module(
+    model_name=settings.rerank_model_name,
+    model_version=settings.rerank_model_version,
+    model_server_url=settings.triton_url,
     is_grpc=grpc
 )
 # db
-db = QdrantChunksDB(url=QDRANT_DB)
+db = QdrantChunksDB(url=settings.qdrant_db)
 
 # Sevices V1 
 services = RetrievalServicesV1(
@@ -177,3 +186,9 @@ async def get_config_model(model_name: str, model_version: str) -> JSONResponse:
         return JSONResponse(content={"Error": "No config found!"})
     return JSONResponse(content=config)
 
+@app.get("/settings", dependencies=[Depends(oauth_2_scheme)])
+async def get_settings() -> JSONResponse:
+    """
+    Get settings
+    """
+    return JSONResponse(content=settings.dict())
