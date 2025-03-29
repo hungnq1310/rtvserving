@@ -1,5 +1,6 @@
 import os
 import logging
+import json
 
 from typing import Optional, List, Any
 from qdrant_client.http import models
@@ -21,8 +22,6 @@ class QdrantChunksDB(InterfaceDatabase):
     """
     def __init__(
         self,
-        host=os.getenv("QDRANT_HOST", "localhost"),
-        port=os.getenv("QDRANT_PORT", 6333),
         url: Optional[str] = None,
         api_key: Optional[str] = None,
     ) -> None:
@@ -96,33 +95,42 @@ class QdrantChunksDB(InterfaceDatabase):
         )
     
     def delete(self, chunk_ids: str | List[str] | None, doc_id: str | None, chunker_id: str, **kwagrs):
-        if chunk_ids is not None:
-            if isinstance(chunk_ids, str):
-                chunk_ids = [chunk_ids]
-            self._client.delete(
-                collection_name=chunker_id,
-                points_selector=models.PointIdsList(
-                    points=chunk_ids,
-                ),
-            )
-        elif doc_id is not None:
-            self._client.delete(
-                collection_name=chunker_id,
-                points_selector=models.FilterSelector(filter=models.Filter(
-                    must=[
-                        models.FieldCondition(
-                            key="doc_id",
-                            match=models.MatchValue(value=f"{doc_id}"),
-                        ),
-                    ])
-                ),
-            )
-        else:
-            return {'status': 'failed', 'message': 'No group id found'}
+        try:
+            if chunk_ids is not None:
+                if isinstance(chunk_ids, str):
+                    chunk_ids = [chunk_ids]
+                self._client.delete(
+                    collection_name=chunker_id,
+                    points_selector=models.PointIdsList(
+                        points=chunk_ids,
+                    ),
+                )
+                return {'status': 'success', 'message': f"Chunks [{chunk_ids}] deleted!"}
+            elif doc_id is not None:
+                self._client.delete(
+                    collection_name=chunker_id,
+                    points_selector=models.FilterSelector(filter=models.Filter(
+                        must=[
+                            models.FieldCondition(
+                                key="doc_id",
+                                match=models.MatchValue(value=f"{doc_id}"),
+                            ),
+                        ])
+                    ),
+                )
+                return {'status': 'success', 'message': f"Document {doc_id} deleted!"}
+            else:
+                return {'status': 'failed', 'message': 'No group id found'}
+            
+        except Exception as e:
+            return json.loads(e.content.decode('utf-8')) # qdrant error message
     
     def delete_chunker(self, chunker_id: str):
-        self._client.delete_collection(collection_name=chunker_id)
-        return {'status': 'success', 'message': f"Collection {chunker_id} deleted!"}
-
+        try:
+            self._client.delete_collection(collection_name=chunker_id)
+            return {'status': 'success', 'message': f"Collection {chunker_id} deleted!"}
+        except Exception as e:
+            return {'status': 'failed', 'message': f"Error deleting collection {chunker_id}: {e}"}
+        
     def update(self, points_ids, **kwagrs):
         ...
