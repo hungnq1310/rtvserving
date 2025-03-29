@@ -13,11 +13,13 @@ class RetrievalServicesV1(InterfaceService):
         self,
         query_module: BaseModule,
         context_module: BaseModule, 
+        rerank_module: BaseModule,
         chunk_db: InterfaceDatabase,
     ):
         super().__init__()
         self.query_module = query_module
         self.context_module = context_module
+        self.rerank_module = rerank_module
         self.chunk_db = chunk_db
 
     def retrieve_chunks(self, query: str, chunker_id, **kwargs) -> List[Dict[str, Any]]:
@@ -61,9 +63,23 @@ class RetrievalServicesV1(InterfaceService):
         Get the config of the model
         """
         model_path = os.path.join("/models", model_name, str(model_version), "config.json")
-        print(f"Model path: {model_path}")
         if not os.path.exists(model_path):
             return {"Error": "Model not found!"}
         with open(model_path, 'r') as f:
             dict = json.load(f)
         return dict
+    
+    def rerank(self, query: str, chunks: List[dict], **kwargs) -> List[Dict[str, Any]]:
+        """
+        Rerank the chunks
+        """
+        if not chunks:
+            return []
+        # rerank
+        scores = []
+        for i in range(0, len(chunks)):
+            score = self.rerank_module.rerank(query, chunks[i]['payload']['text'])
+            scores.append(score)
+        # sort by score
+        sorted_chunks = sorted(zip(chunks, scores), key=lambda x: x[1], reverse=True)
+        return [chunk for chunk, score in sorted_chunks]
