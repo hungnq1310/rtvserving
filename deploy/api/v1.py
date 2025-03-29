@@ -178,6 +178,23 @@ async def delete_chunker_id(chunker_id: str) -> JSONResponse:
     response = services.chunk_db.delete_chunker(chunker_id)
     return JSONResponse(content=response)
 
+@app.post("/embed", dependencies=[Depends(oauth_2_scheme)])
+async def embed_texts(texts: List[str], model_name: str = None) -> JSONResponse:
+    """
+    Embed texts
+    """
+    if not texts:
+        return JSONResponse(content={"Error": "No texts found!"})
+    # get embeddings
+    if model_name == "query":
+        dump_model = query_module
+    elif model_name == "context":
+        dump_model = context_module
+    else:
+        return JSONResponse(content={"Error": "Model name not found!"})
+    embeddings = dump_model.embed(texts)
+    return JSONResponse(content=embeddings)
+
 
 @app.get("/get_config_model", dependencies=[Depends(oauth_2_scheme)])
 async def get_config_model(model_name: str, model_version: str) -> JSONResponse:
