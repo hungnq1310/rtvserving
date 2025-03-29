@@ -1,25 +1,19 @@
 import os
 from typing import List, Any, Optional, Union
 
-from fastapi import FastAPI, Depends, HTTPException, Form, APIRouter
+from fastapi import Depends, HTTPException, Form, APIRouter
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2AuthorizationCodeBearer
-import requests
-from pydantic import BaseModel
 
 from jwt import PyJWKClient
 import jwt
 from typing import Annotated
-
-from ray import serve
 from dotenv import load_dotenv
 
 from rtvserving.db.qdrant_db import QdrantChunksDB
 from rtvserving.module.module import BaseModule
 from rtvserving.utils.stuff import _init_model_and_tokenizer
 from rtvserving.services.v1 import RetrievalServicesV1
-
-import asyncio
 
 load_dotenv()
 # Parse environment variables
@@ -84,143 +78,88 @@ async def valid_access_token(access_token: Annotated[str, Depends(oauth_2_scheme
     except jwt.exceptions.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-# Model cho đăng ký & đăng nhập
-class UserRegister(BaseModel):
-    username: str
-    password: str
-    email: str
-
-class UserLogin(BaseModel):
-    username: str
-    password: str
-
 app = APIRouter()
 
-############
-# Services Definition
-############
-@serve.deployment
-class ServicesV1: # this into services 
-    def __init__(self, 
-        query_retriever_name: str,
-        query_version: int,
-        ctx_retriever_name: str,
-        ctx_version: int,
-        model_server_url: str,
-        is_grpc: bool,
-        db_url: str
-    ):
-        # query
-        self.query_module = self.init_module(
-            model_name=query_retriever_name,
-            model_version=query_version,
-            model_server_url=model_server_url,
-            is_grpc=is_grpc
-        )
-        # ctx
-        self.context_module = self.init_module(
-            model_name=ctx_retriever_name,
-            model_version=ctx_version,
-            model_server_url=model_server_url,
-            is_grpc=is_grpc
-        )
-        # db
-        self.db = QdrantChunksDB(url=db_url)
-        # Sevices V1 
-        self.services = RetrievalServicesV1(
-            query_module=self.query_module,
-            context_module=self.context_module,
-            chunk_db=self.db
-        )
-
-    def init_module(self, model_name, model_version, model_server_url, is_grpc):
-        model, tokenizer = _init_model_and_tokenizer(
-            model_name=model_name,
-            model_version=model_version,
-            model_server_url=model_server_url,
-            is_grpc=is_grpc
-        )
-        return BaseModule(tokenizer=tokenizer, model=model)
-    
-    async def retrieve_chunks(self, query: str, chunker_id: str):
-        return self.services.retrieve_chunks(query, chunker_id)
-    
-    async def insert_chunks(self, chunks: List[dict], chunker_id: str):
-        return self.services.insert_chunks(chunks, chunker_id)
-    
-    async def delete_chunks(self, chunk_ids: Union[str, List[str]], chunker_id: str):        
-        return self.db.delete(chunk_ids=chunk_ids, chunker_id=chunker_id)
-    
-    async def delete_doc_id(self, doc_id: str, chunker_id: str):
-        return self.db.delete(doc_id=doc_id, chunker_id=chunker_id)
-    
-    async def delete_chunker(self, chunker_id: str):
-        return self.db.delete_chunker(chunker_id)
-    
 
 ####################
-# Deploy the service
+# Init modules
 ####################
-service_app1 = ServicesV1.bind(
-    query_retriever_name=query_retriever_name,
-    query_version=query_version,
-    ctx_retriever_name=ctx_retriever_name,
-    ctx_version=ctx_version,
+def init_module( model_name, model_version, model_server_url, is_grpc):
+    model, tokenizer = _init_model_and_tokenizer(
+        model_name=model_name,
+        model_version=model_version,
+        model_server_url=model_server_url,
+        is_grpc=is_grpc
+    )
+    return BaseModule(tokenizer=tokenizer, model=model)
+
+
+query_module = init_module(
+    model_name=query_retriever_name,
+    model_version=query_version,
     model_server_url=url,
-    is_grpc=grpc,
-    db_url=QDRANT_DB
+    is_grpc=grpc
 )
+        # ctx
+context_module = init_module(
+    model_name=ctx_retriever_name,
+    model_version=ctx_version,
+    model_server_url=url,
+    is_grpc=grpc
+)
+# db
+db = QdrantChunksDB(url=QDRANT_DB)
+
+# Sevices V1 
+services = RetrievalServicesV1(
+    query_module=query_module,
+    context_module=context_module,
+    chunk_db=db
+)
+
 
 ####################
 # FastAPI Deployment
 ####################
-@serve.deployment
-@serve.ingress(app)
-class FastAPIDeployment:
-    # FastAPI will automatically parse the HTTP request for us.
-    def __init__(self, service_app):
-        self.service_app = service_app
-        # self.insert_app = insert_app
 
-    @app.get("/hello", dependencies=[Depends(oauth_2_scheme)])
-    def hello(self, name: str) -> JSONResponse:
-        return JSONResponse(content={"message": f"Hello, {name}!"})
 
-    @app.post("/retrieve_chunks", dependencies=[Depends(oauth_2_scheme)])
-    async def retrieve_chunks(self, query: str, chunker_id: str) -> JSONResponse:
-        # add remote with async func
-        chunks = await self.service_app.retrieve_chunks.remote(query, chunker_id)
-        if not chunks:
-            return JSONResponse(content={"Error": "No chunks found!"})
-        return JSONResponse(content=chunks)
-    
-    @app.post("/insert_chunks", dependencies=[Depends(oauth_2_scheme)])
-    async def insert_chunks(self, chunks: List[dict], chunker_id: str) -> JSONResponse:
-        # add remote with async func
-        response = await self.service_app.insert_chunks.remote(chunks, chunker_id)
-        return JSONResponse(content=response)
-    
-    @app.delete("/delete-chunks", dependencies=[Depends(oauth_2_scheme)])
-    async def delete_chunk_ids(self, chunk_ids: List[str], chunker_id: str) -> JSONResponse:        # add remote with async func
-        response = await self.service_app.delete_chunks.remote(chunk_ids=chunk_ids, chunker_id=chunker_id)
-        return JSONResponse(content=response)
-    
-    @app.delete("/delete-chunk", dependencies=[Depends(oauth_2_scheme)])
-    async def delete_chunk_ids(self, chunk_id: str, chunker_id: str) -> JSONResponse:        # add remote with async func
-        response = await self.service_app.delete_chunks.remote(chunk_ids=[chunk_id], chunker_id=chunker_id)
-        return JSONResponse(content=response)
-    
-    @app.delete("/delete-doc", dependencies=[Depends(oauth_2_scheme)])
-    async def delete_doc_id(self, doc_id: str, chunker_id: str) -> JSONResponse:
-        # add remote with async func
-        response = await self.service_app.delete_doc_id.remote(doc_id=doc_id, chunker_id=chunker_id)
-        return JSONResponse(content=response)
-    
-    @app.delete("/delete-chunker", dependencies=[Depends(oauth_2_scheme)])
-    async def delete_chunker_id(self, chunker_id: str) -> JSONResponse:
-        # add remote with async func
-        response = await self.service_app.delete_chunker.remote(chunker_id)
-        return JSONResponse(content=response)
+@app.get("/hello", dependencies=[Depends(oauth_2_scheme)])
+def hello(self, name: str) -> JSONResponse:
+    return JSONResponse(content={"message": f"Hello, {name}!"})
 
-# 2: Deploy the deployment.
-mainapp = FastAPIDeployment.bind(service_app1)
+@app.post("/retrieve_chunks", dependencies=[Depends(oauth_2_scheme)])
+async def retrieve_chunks(self, query: str, chunker_id: str) -> JSONResponse:
+    # add remote with async func
+    chunks = await services.retrieve_chunks(query, chunker_id)
+    if not chunks:
+        return JSONResponse(content={"Error": "No chunks found!"})
+    return JSONResponse(content=chunks)
+
+@app.post("/insert_chunks", dependencies=[Depends(oauth_2_scheme)])
+async def insert_chunks(self, chunks: List[dict], chunker_id: str) -> JSONResponse:
+    # add remote with async func
+    response = await services.insert_chunks(chunks, chunker_id)
+    return JSONResponse(content=response)
+
+@app.delete("/delete-chunks", dependencies=[Depends(oauth_2_scheme)])
+async def delete_chunk_ids(self, chunk_ids: List[str], chunker_id: str) -> JSONResponse:        # add remote with async func
+    response = await services.chunk_db.delete_chunks(chunk_ids=chunk_ids, chunker_id=chunker_id)
+    return JSONResponse(content=response)
+
+@app.delete("/delete-chunk", dependencies=[Depends(oauth_2_scheme)])
+async def delete_chunk_ids(self, chunk_id: str, chunker_id: str) -> JSONResponse:        # add remote with async func
+    response = await services.chunk_db.delete_chunks(chunk_ids=[chunk_id], chunker_id=chunker_id)
+    return JSONResponse(content=response)
+
+@app.delete("/delete-doc", dependencies=[Depends(oauth_2_scheme)])
+async def delete_doc_id(self, doc_id: str, chunker_id: str) -> JSONResponse:
+    # add remote with async func
+    response = await services.chunk_db.delete_doc_id(doc_id=doc_id, chunker_id=chunker_id)
+    return JSONResponse(content=response)
+
+@app.delete("/delete-chunker", dependencies=[Depends(oauth_2_scheme)])
+async def delete_chunker_id(self, chunker_id: str) -> JSONResponse:
+    # add remote with async func
+    response = await services.chunk_db.delete_chunker(chunker_id)
+    return JSONResponse(content=response)
+
