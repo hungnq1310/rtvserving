@@ -4,6 +4,8 @@ from rtvserving.services.interface import InterfaceService
 from rtvserving.db.interface import InterfaceDatabase
 
 import hashlib
+import json
+import os
 
 class RetrievalServicesV1(InterfaceService):
     """Manager for Retrieval Services"""
@@ -53,3 +55,15 @@ class RetrievalServicesV1(InterfaceService):
         except Exception as e:
             return {"Error": f"Error inserting chunks: {e}"}
         return {"Success": "Chunks inserted!"}
+    
+    def get_config_model(self, model_name: str, model_version: str):
+        """
+        Get the config of the model
+        """
+        model_path = os.path.join("/models", model_name, str(model_version), "config.json")
+        print(f"Model path: {model_path}")
+        if not os.path.exists(model_path):
+            return {"Error": "Model not found!"}
+        with open(model_path, 'r') as f:
+            dict = json.load(f)
+        return dict
