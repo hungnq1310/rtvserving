@@ -8,3 +8,4 @@ qdrant_client
 numpy>=2
 transformers
 PyJWT
+pydantic_settings
