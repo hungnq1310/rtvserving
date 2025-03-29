@@ -10,10 +10,10 @@ import jwt
 from typing import Annotated
 from dotenv import load_dotenv
 
-from rtvserving.db.qdrant_db import QdrantChunksDB
-from rtvserving.module.module import BaseModule
-from rtvserving.utils.stuff import _init_model_and_tokenizer
-from rtvserving.services.v1 import RetrievalServicesV1
+from ..rtvserving.db.qdrant_db import QdrantChunksDB
+from ..rtvserving.module.module import BaseModule
+from ..rtvserving.utils.stuff import _init_model_and_tokenizer
+from ..rtvserving.services.v1 import RetrievalServicesV1
 
 load_dotenv()
 # Parse environment variables
@@ -162,4 +162,18 @@ async def delete_chunker_id(chunker_id: str) -> JSONResponse:
     # add remote with async func
     response = services.chunk_db.delete_chunker(chunker_id)
     return JSONResponse(content=response)
+
+
+@app.get("/get_config_model", dependencies=[Depends(oauth_2_scheme)])
+async def get_config_model(model_name: str, model_version: str) -> JSONResponse:
+    """
+    Get model config
+    """
+    if not model_name or not model_version:
+        return JSONResponse(content={"Error": "Model name and version are required!"})
+    # get config
+    config = services.get_config_model(model_name, model_version)
+    if not config:
+        return JSONResponse(content={"Error": "No config found!"})
+    return JSONResponse(content=config)
 
