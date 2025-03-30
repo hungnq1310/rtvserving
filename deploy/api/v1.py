@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     rerank_model_name: str = None
     rerank_model_version: int = None
     rerank_batch_size: int = None
-    triton_url: str = "localhost:8000"
+    rtv_triton_url: str = "localhost:8000"
     protocol: str = "HTTP"
     verbose: bool = False
     async_set: bool = False
@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     keycloak_audience: str = None
     algorithm: str = "RS256"
 
-    model_config = SettingsConfigDict(env_file=".env")
+    model_config = SettingsConfigDict(env_file=".env", extra='ignore')
 
 # Parse environment variables
 settings = Settings()
@@ -79,7 +79,7 @@ async def valid_access_token(access_token: Annotated[str, Depends(oauth_2_scheme
     except jwt.exceptions.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-app = APIRouter()
+app = APIRouter(prefix="/retrieval")
 
 
 ####################
@@ -98,20 +98,20 @@ def init_module( model_name, model_version, model_server_url, is_grpc):
 query_module = init_module(
     model_name=settings.query_model_name,
     model_version=settings.query_model_version,
-    model_server_url=settings.triton_url,
+    model_server_url=settings.rtv_triton_url,
     is_grpc=grpc
 )
         # ctx
 context_module = init_module(
     model_name=settings.ctx_model_name,
     model_version=settings.ctx_model_version,
-    model_server_url=settings.triton_url,
+    model_server_url=settings.rtv_triton_url,
     is_grpc=grpc
 )
 rerank_module = init_module(
     model_name=settings.rerank_model_name,
     model_version=settings.rerank_model_version,
-    model_server_url=settings.triton_url,
+    model_server_url=settings.rtv_triton_url,
     is_grpc=grpc
 )
 # db
